@@ -19,10 +19,11 @@ const (
 	modelsRefreshInterval = 3 * time.Hour
 )
 
-var modelsURLs = []string{
-	"https://raw.githubusercontent.com/router-for-me/models/refs/heads/main/models.json",
-	"https://models.router-for.me/models.json",
-}
+// Empty: rely on the embedded models/models.json catalog only.
+// Both upstream URLs are missing claude-opus-4-7 and (until they catch up)
+// gemini-3.5-flash, while the embedded JSON has both. Re-enable a URL once
+// it carries the full set we depend on.
+var modelsURLs = []string{}
 
 //go:embed models/models.json
 var embeddedModelsJSON []byte
