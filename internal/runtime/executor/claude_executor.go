@@ -1945,9 +1945,6 @@ func checkSystemInstructionsWithSigningMode(payload []byte, strictMode bool, exp
 
 		if len(userSystemParts) > 0 {
 			combined := strings.Join(userSystemParts, "\n\n")
-			if oauthMode {
-				combined = sanitizeForwardedSystemPrompt(combined)
-			}
 			if strings.TrimSpace(combined) != "" {
 				payload = prependToFirstUserMessage(payload, combined)
 			}
@@ -1955,19 +1952,6 @@ func checkSystemInstructionsWithSigningMode(payload []byte, strictMode bool, exp
 	}
 
 	return payload
-}
-
-// sanitizeForwardedSystemPrompt reduces forwarded third-party system context to a
-// tiny neutral reminder for Claude OAuth cloaking. The goal is to preserve only
-// the minimum tool/task guidance while removing virtually all client-specific
-// prompt structure that Anthropic may classify as third-party agent traffic.
-func sanitizeForwardedSystemPrompt(text string) string {
-	if strings.TrimSpace(text) == "" {
-		return ""
-	}
-	return strings.TrimSpace(`Use the available tools when needed to help with software engineering tasks.
-Keep responses concise and focused on the user's request.
-Prefer acting on the user's task over describing product-specific workflows.`)
 }
 
 // buildTextBlock constructs a JSON text block object with proper escaping.
