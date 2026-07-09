@@ -1,8 +1,10 @@
 # Fork Notes (Sixzero/CLIProxyAPI)
 
-Local patches on top of `upstream/main` (router-for-me/CLIProxyAPI).
+Local patches on top of `upstream/main` (router-for-me/CLIProxyAPI), plus
+runtime/deployment state worth remembering.
 Do not lose these on re-clone — they are what makes user `system` prompts
-actually reach Claude through the OAuth path without triggering 429.
+actually reach Claude through the OAuth path without triggering 429, and
+document how Grok is authed / region-unblocked.
 
 ## Active patches (uncommitted on `main`)
 
@@ -42,6 +44,61 @@ Not in this repo, but required for the passthrough to do anything:
 `build_messages(::AnthropicSchema, ...)` no longer folds `sys_msg` into
 the first user message; it emits a top-level `system` field so the proxy
 can see it.
+
+## Runtime setup (not code patches — deployment state)
+
+These live in `~/.cli-proxy-api/*.json` (auth dir), not in the repo. Kept
+here so they aren't lost / re-investigated.
+
+### xAI / Grok
+
+- **Support:** upstream (post rebase 2026-07-09). Full xAI integration —
+  OAuth login, Responses API executor, image/video, reasoning replay.
+  All Grok models in the embedded registry (`grok-4.5`, `grok-4.3`,
+  `grok-build-0.1`, `grok-4.20-*`, `grok-3-mini*`, `grok-composer-2.5-fast`,
+  `grok-imagine-*`).
+- **Auth:** OAuth via `./cli-proxy-api --xai-login --no-browser`
+  (loopback callback on `127.0.0.1:56121`; if the browser can't reach it,
+  paste the "Enter this code" token at the prompt). Account
+  `havliktomi@gmail.com` → `~/.cli-proxy-api/xai-havliktomi@gmail.com.json`.
+  The refresh token is location-independent: the same file works copied to
+  other hosts (local + server), no per-host re-login needed.
+
+### grok-4.5 region lock → per-account US proxy
+
+- **Symptom:** `grok-4.5` lists but calls return xAI's
+  `permission-denied: "The model grok-4.5 is not available in your region."`
+  from an EU egress IP (HU/FI). The proxy then reports
+  `auth_unavailable: no auth available (model=grok-4.5)` (per-model
+  cooldown after the upstream error). Other Grok models work from EU.
+  Root cause: **xAI-side geoblock on grok-4.5**, not an auth/deploy bug —
+  proven: same OAuth token via a US egress IP returns valid responses.
+- **Fix (0 code, per-account):** add a `proxy_url` field to the xAI auth
+  file so *only* xAI traffic goes through a US proxy (Claude/Codex/Gemini
+  are separate auth files → untouched):
+  ```json
+  "proxy_url": "http://<user>:<pass>@<us-proxy-host>:<port>"
+  ```
+  The auth-dir file watcher hot-reloads it — **no restart** needed.
+  Precedence: `auth.ProxyURL` (per-account) > global `cfg.ProxyURL`
+  (`internal/runtime/executor/helps/proxy_helpers.go`,
+  `NewProxyAwareHTTPClient`). Per-*model* proxy is NOT supported without a
+  fork patch to `xai_executor.go`; per-account is enough (all Grok models
+  work through the proxy fine).
+- **Proxy source:** Webshare subscription (`havliktomi@gmail.com`,
+  100 proxies / 250 GB/mo). 5 dedicated proxies moved to US via the
+  dashboard (the API's `countries` field is read-only, no reset endpoint —
+  must reallocate in the web UI). Credentials + all 5 US IPs stored in the
+  vault at `api/webshare` (api_key, proxy_user, proxy_pass, us_proxies).
+  Currently wired: `31.59.18.138:6719` (Satellite Beach, FL); 4 spares for
+  failover — just swap the IP:port in `proxy_url`.
+- **Verify:**
+  ```bash
+  KEY=... # API key from config.yaml
+  curl -s http://127.0.0.1:8317/v1/chat/completions -H "Authorization: Bearer $KEY" \
+    -H "Content-Type: application/json" \
+    -d '{"model":"grok-4.5","messages":[{"role":"user","content":"reply exactly: PONG"}],"stream":false}'
+  ```
 
 ## Rebuild
 
