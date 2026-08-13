@@ -359,7 +359,7 @@ func (m *Manager) availableAuthsForRouteModelWithPriorityMode(auths []*Auth, pro
 			}
 			return nil, newModelCooldownError(routeModel, providerForError, resetIn)
 		}
-		return nil, &Error{Code: "auth_unavailable", Message: "no auth available"}
+		return nil, newAuthUnavailableError(auths, routeModel, now)
 	}
 
 	return availableAuthsFromPriorityBuckets(availableByPriority, allPriorities), nil

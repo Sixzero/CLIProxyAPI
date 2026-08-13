@@ -143,6 +143,53 @@ func (e *modelCooldownError) Headers() http.Header {
 	return headers
 }
 
+// modelStateFor returns the recorded model state, including suffixed model requests.
+func modelStateFor(auth *Auth, model string) *ModelState {
+	if auth == nil || len(auth.ModelStates) == 0 || model == "" {
+		return nil
+	}
+	if state := auth.ModelStates[model]; state != nil {
+		return state
+	}
+	if base := canonicalModelKey(model); base != "" && base != model {
+		return auth.ModelStates[base]
+	}
+	return nil
+}
+
+// newAuthUnavailableError preserves the latest upstream cause when every candidate is blocked.
+func newAuthUnavailableError(auths []*Auth, model string, now time.Time) *Error {
+	var last *Error
+	var lastAt, earliest time.Time
+	for _, auth := range auths {
+		if auth == nil {
+			continue
+		}
+		lastErr, updated, next := auth.LastError, auth.UpdatedAt, auth.NextRetryAfter
+		if state := modelStateFor(auth, model); state != nil {
+			lastErr, updated, next = state.LastError, state.UpdatedAt, state.NextRetryAfter
+		}
+		if lastErr != nil && (last == nil || updated.After(lastAt)) {
+			last, lastAt = lastErr, updated
+		}
+		if next.After(now) && (earliest.IsZero() || next.Before(earliest)) {
+			earliest = next
+		}
+	}
+
+	message := "no auth available"
+	if last != nil {
+		message += "; last upstream error: " + strings.TrimSpace(last.Message)
+		if last.HTTPStatus != 0 {
+			message += fmt.Sprintf(" (status %d)", last.HTTPStatus)
+		}
+	}
+	if !earliest.IsZero() {
+		message += "; retry in " + earliest.Sub(now).Round(time.Second).String()
+	}
+	return &Error{Code: "auth_unavailable", Message: message}
+}
+
 func authPriority(auth *Auth) int {
 	if auth == nil || auth.Attributes == nil {
 		return 0
@@ -294,7 +341,7 @@ func getAvailableAuthsWithPriorityMode(auths []*Auth, provider, model string, no
 			}
 			return nil, newModelCooldownError(model, providerForError, resetIn)
 		}
-		return nil, &Error{Code: "auth_unavailable", Message: "no auth available"}
+		return nil, newAuthUnavailableError(auths, model, now)
 	}
 
 	return availableAuthsFromPriorityBuckets(availableByPriority, allPriorities), nil

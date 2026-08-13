@@ -485,7 +485,15 @@ func (s *authScheduler) mixedUnavailableErrorLocked(providers []string, model st
 		}
 		return newModelCooldownError(model, "", resetIn)
 	}
-	return &Error{Code: "auth_unavailable", Message: "no auth available"}
+	var blockedAuths []*Auth
+	for _, providerKey := range providers {
+		if providerState := s.providers[providerKey]; providerState != nil {
+			if shard := providerState.ensureModelLocked(canonicalModelKey(model), now); shard != nil {
+				blockedAuths = append(blockedAuths, shard.authsLocked(predicate)...)
+			}
+		}
+	}
+	return newAuthUnavailableError(blockedAuths, model, now)
 }
 
 // scheduledAuthPredicate filters request-ineligible auths before scheduler state advances.
@@ -895,7 +903,21 @@ func (m *modelScheduler) unavailableErrorLocked(provider, model string, predicat
 		}
 		return newModelCooldownError(model, providerForError, resetIn)
 	}
-	return &Error{Code: "auth_unavailable", Message: "no auth available"}
+	return newAuthUnavailableError(m.authsLocked(predicate), model, now)
+}
+
+func (m *modelScheduler) authsLocked(predicate func(*scheduledAuth) bool) []*Auth {
+	if m == nil {
+		return nil
+	}
+	auths := make([]*Auth, 0, len(m.entries))
+	for _, entry := range m.entries {
+		if entry == nil || entry.auth == nil || (predicate != nil && !predicate(entry)) {
+			continue
+		}
+		auths = append(auths, entry.auth)
+	}
+	return auths
 }
 
 // availabilitySummaryLocked summarizes total candidates, cooldown count, and earliest retry time.

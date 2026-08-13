@@ -2327,3 +2327,40 @@ func TestManagerSetSelectorConcurrent(t *testing.T) {
 	}
 	wg.Wait()
 }
+func TestNewAuthUnavailableError_IncludesLastUpstreamError(t *testing.T) {
+	t.Parallel()
+
+	now := time.Now()
+	auths := []*Auth{
+		{
+			ID: "a",
+			ModelStates: map[string]*ModelState{
+				"gpt-5.6-sol": {
+					Unavailable:    true,
+					NextRetryAfter: now.Add(90 * time.Second),
+					LastError:      &Error{Message: "Our servers are currently overloaded. Please try again later.", HTTPStatus: 502},
+					UpdatedAt:      now,
+				},
+			},
+		},
+	}
+
+	err := newAuthUnavailableError(auths, "gpt-5.6-sol(high)", now)
+	if err.Code != "auth_unavailable" {
+		t.Fatalf("Code = %q, want auth_unavailable", err.Code)
+	}
+	for _, want := range []string{"overloaded", "status 502", "retry in 1m30s"} {
+		if !strings.Contains(err.Message, want) {
+			t.Fatalf("Message = %q, want substring %q", err.Message, want)
+		}
+	}
+}
+
+func TestNewAuthUnavailableError_NoRecordedError(t *testing.T) {
+	t.Parallel()
+
+	err := newAuthUnavailableError([]*Auth{{ID: "a"}}, "m", time.Now())
+	if err.Message != "no auth available" {
+		t.Fatalf("Message = %q, want plain no auth available", err.Message)
+	}
+}
