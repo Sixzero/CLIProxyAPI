@@ -2,32 +2,35 @@
 
 Local patches on top of `upstream/main` (router-for-me/CLIProxyAPI), plus
 runtime/deployment state worth remembering.
-Do not lose these on re-clone — they are what makes user `system` prompts
-actually reach Claude through the OAuth path without triggering 429, and
-document how Grok is authed / region-unblocked.
 
-## Active patches (uncommitted on `main`)
+## Retired patches (superseded by upstream — 2026-08-13 rebase onto d757063c)
 
-### 1. OAuth system-prompt passthrough (always on)
+Goal is to keep this list shrinking: prefer upstream absorbing our behavior
+over carrying patches.
 
-**File:** `internal/runtime/executor/claude_executor.go`
+- **OAuth system-prompt passthrough** (`sanitizeForwardedSystemPrompt`
+  removal) — upstream `ef89c6a6` now preserves the caller's system prompt
+  verbatim: real mid-conversation `system` turn on current models, legacy
+  `<system-reminder>` (verbatim text, no hedge) only for old model IDs.
+- **`<instructions>` framing of user sys_msg** — obsolete with the above;
+  the hedged "may or may not be relevant" wording now only wraps the
+  generated currentDate reminder, not caller instructions.
+- **Codex UA bump to 0.144.0** — upstream ships 0.144.0.
+- **claude-opus-5 in embedded models.json** — upstream catalog has it
+  (our copy caused a duplicate-id validation failure).
 
-Removes the cloak-mode `sanitizeForwardedSystemPrompt` call (and the
-function itself) so the user's real `system` text always flows through to
-the model verbatim. Cloaking (device fingerprint + CC system block +
-billing header → no 429) is preserved.
+## Active patches (committed on `main`, on top of upstream)
 
-Previously this was gated behind `CLIPROXY_OAUTH_PASSTHROUGH_SYSTEM=1`;
-that env var is no longer read — passthrough is the default and only
-behavior.
+### 1. Enriched auth_unavailable errors
 
-**Behavior:**
-- Cloaking ON (CC system prompt, device fingerprint, billing header preserved).
-- User `system` text is prepended to the first user message verbatim (not
-  replaced with the neutral 3-line reminder).
-- Opus-4.7 and Sonnet-4.6 follow prepended instructions (PEACH test passes).
-- Haiku-4.5 still refuses — it prioritizes CC's authoritative system block.
-  That is a model-behavior limit, not a proxy-code bug.
+**Files:** `sdk/cliproxy/auth/selector.go`, `scheduler.go`,
+`conductor_selection.go`
+
+When every candidate auth is blocked by a non-quota cooldown, the
+`auth_unavailable` error carries the most recent recorded upstream
+`LastError` and earliest retry time (e.g. "no auth available; last
+upstream error: overloaded (status 502); retry in 1m30s") instead of a
+bare "no auth available".
 
 ### 2. Remote model catalog fetch disabled
 
