@@ -2480,6 +2480,7 @@ func TestClaudeExecutor_CountTokensUpstreamConfirmedVSCodePreservesCustomTool(t 
 }
 
 func TestClaudeExecutor_CountTokensCloakMatchesMeasuredDirectAnthropicShape(t *testing.T) {
+	enableClaudeMCPToolAliasForTest(t)
 	var upstreamBody []byte
 	transport := roundTripperFunc(func(req *http.Request) (*http.Response, error) {
 		var errRead error
@@ -7684,6 +7685,7 @@ func TestRemapOAuthToolNames_SemanticAliasRestoresLongOriginal(t *testing.T) {
 }
 
 func TestPrepareClaudeOAuthToolNamesForUpstream_PreservesMCPConvention(t *testing.T) {
+	enableClaudeMCPToolAliasForTest(t)
 	body := []byte(`{"tools":[
 		{"name":"search_web","input_schema":{"type":"object"}},
 		{"name":"mcp__context7__query-docs","input_schema":{"type":"object"}},
@@ -7778,6 +7780,7 @@ func TestReverseRemapOAuthToolNamesFromStreamLine_HonorsPerRequestMap(t *testing
 }
 
 func TestPrepareClaudeOAuthToolNamesForUpstream_AllCustomToolsWithHistory(t *testing.T) {
+	enableClaudeMCPToolAliasForTest(t)
 	body := []byte(`{"tools":[` +
 		`{"name":"Bash","input_schema":{"type":"object","properties":{"cmd":{"type":"string"}}}},` +
 		`{"name":"glob","input_schema":{"type":"object","properties":{"filePattern":{"type":"string"}}}}` +
@@ -7804,6 +7807,7 @@ func TestPrepareClaudeOAuthToolNamesForUpstream_AllCustomToolsWithHistory(t *tes
 }
 
 func TestClaudeExecutor_ExecuteOpenAINonStreamRestoresOAuthToolNames(t *testing.T) {
+	enableClaudeMCPToolAliasForTest(t)
 	upstreamBody := strings.Join([]string{
 		`event: message_start`,
 		`data: {"type":"message_start","message":{"id":"msg_123","model":"claude-3-5-sonnet-20241022","usage":{"input_tokens":10,"output_tokens":1}}}`,
@@ -7877,6 +7881,7 @@ func TestClaudeExecutor_ExecuteOpenAINonStreamRestoresOAuthToolNames(t *testing.
 }
 
 func TestClaudeExecutor_ExecuteOAuthCustomToolMCPAliasRoundTrip(t *testing.T) {
+	enableClaudeMCPToolAliasForTest(t)
 	var upstreamAlias string
 	var upstreamBody []byte
 	var upstreamHeaders http.Header
@@ -7942,6 +7947,7 @@ func TestClaudeExecutor_ExecuteOAuthCustomToolMCPAliasRoundTrip(t *testing.T) {
 }
 
 func TestClaudeExecutor_ExecuteStreamOAuthCustomToolMCPAliasRoundTrip(t *testing.T) {
+	enableClaudeMCPToolAliasForTest(t)
 	var upstreamAlias string
 	var upstreamBody []byte
 	var upstreamHeaders http.Header
