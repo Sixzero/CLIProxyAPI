@@ -40,7 +40,32 @@ bare "no auth available".
 `models/models.json` catalog and never overwrites it from the upstream
 remote URLs (which have lagged behind on models we depend on).
 
-### 3. (external) Julia client fix
+### 3. MCP tool-name aliasing disabled by default
+
+**Files:** `internal/runtime/executor/claude_executor_request.go`,
+`internal/runtime/executor/claude_mcp_alias_fork_test.go`
+
+Upstream (`e8d1b79c`, refined by `f3e25ab2`/`afdd251c`/`842dbe63`/`93c378b7`)
+rewrites *every* tool a cloaked OAuth caller declares into
+`mcp__<hash12>__<hash12>_<name>`, restoring the original name from a
+request-local reverse map on the response. It is an anti-fingerprint
+measure, but it renames the tools the model reasons about and produced
+`mcp__…__bash` "invalid response" errors for us.
+
+`prepareClaudeOAuthToolNamesForUpstream` now returns the body untouched
+with an empty reverse map (making every restore path a no-op) unless
+`CPA_CLAUDE_MCP_TOOL_ALIAS=1`. The fork test file sets that env var in
+`init()`, so upstream's alias tests keep running as written and stay
+conflict-free on rebase; one added test pins the disabled default.
+
+Note the cheaper-looking alternative does *not* work: sending a
+`claude-cli/...` User-Agent no longer bypasses cloaking. Since the
+2026-08 rebase `DetectClaudeCodeRequest` requires four strong signals —
+`X-App: cli`, a plausible versioned native UA, the
+`claude-code-20250219` beta, and a well-formed `metadata.user_id` —
+so a UA alone leaves `Confirmed=false` and the request still cloaked.
+
+### 4. (external) Julia client fix
 
 Not in this repo, but required for the passthrough to do anything:
 `/home/six/repo/OpenRouter.jl/src/schemas.jl` —
@@ -146,5 +171,7 @@ Expected: opus-4.7 and sonnet-4.6 return `PEACH`; haiku may refuse.
 
 1. **Tool names** — we expose `Bash`, `Read`, etc. but under non-CC names
    in some paths. Aligning to CC canonical names may relax haiku.
+   (Upstream's MCP aliasing addressed this axis, but at the cost of the
+   model's own tool names — see active patch 3.)
 2. **Tool count** — CC exposes ~14 tools, we expose ~90. Only PR #2845
    would fix this scalably.
