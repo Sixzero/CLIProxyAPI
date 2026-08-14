@@ -27,7 +27,16 @@ func enableClaudeMCPToolAliasForTest(t *testing.T) {
 	t.Setenv("CPA_CLAUDE_MCP_TOOL_ALIAS", "1")
 }
 
+// The toggle is read from the process environment, so a test asserting the
+// fork default has to establish it rather than inherit whatever the shell or
+// CI exports. Empty and unset are treated identically by the implementation.
+func expectClaudeMCPToolAliasDisabled(t *testing.T) {
+	t.Helper()
+	t.Setenv("CPA_CLAUDE_MCP_TOOL_ALIAS", "")
+}
+
 func TestPrepareClaudeOAuthToolNamesForUpstream_DisabledByDefaultKeepsToolNames(t *testing.T) {
+	expectClaudeMCPToolAliasDisabled(t)
 	body := []byte(`{"model":"claude-opus-4-7","tools":[{"name":"bash"},{"name":"read"}],"messages":[{"role":"assistant","content":[{"type":"tool_use","id":"t1","name":"bash","input":{}}]}]}`)
 	out, reverseMap := prepareClaudeOAuthToolNamesForUpstream(body, claudeMCPAliasOptions{secret: "fork-caller"})
 
@@ -48,10 +57,13 @@ func TestPrepareClaudeOAuthToolNamesForUpstream_DisabledByDefaultKeepsToolNames(
 // The three request paths are covered separately: a toggle honoured by the
 // helper but bypassed by one call site would still alias tools in production.
 func TestClaudeExecutor_ExecuteCloakedOAuthKeepsToolNamesByDefault(t *testing.T) {
+	expectClaudeMCPToolAliasDisabled(t)
 	var upstreamName string
+	var upstreamSystem string
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		body, _ := io.ReadAll(r.Body)
 		upstreamName = gjson.GetBytes(body, "tools.0.name").String()
+		upstreamSystem = gjson.GetBytes(body, "system").String()
 		w.Header().Set("Content-Type", "application/json")
 		_, _ = fmt.Fprintf(w, `{"id":"msg_1","type":"message","role":"assistant","model":"claude-opus-4-6","content":[{"type":"tool_use","id":"toolu_1","name":%q,"input":{"query":"go"}}],"stop_reason":"tool_use","usage":{"input_tokens":1,"output_tokens":1}}`, upstreamName)
 	}))
@@ -79,9 +91,15 @@ func TestClaudeExecutor_ExecuteCloakedOAuthKeepsToolNamesByDefault(t *testing.T)
 	if got := gjson.GetBytes(resp.Payload, "content.0.name").String(); got != "search_web" {
 		t.Fatalf("client tool name = %q, want search_web; payload=%s", got, resp.Payload)
 	}
+	// Only the alias pass is disabled: the rest of cloaking must still run, or
+	// this fork would be quietly leaking a third-party system prompt upstream.
+	if !strings.Contains(upstreamSystem, claudeCodeCLIIdentity) {
+		t.Fatalf("upstream system lost Claude Code cloaking: %s", upstreamSystem)
+	}
 }
 
 func TestClaudeExecutor_ExecuteStreamCloakedOAuthKeepsToolNamesByDefault(t *testing.T) {
+	expectClaudeMCPToolAliasDisabled(t)
 	var upstreamName string
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		body, _ := io.ReadAll(r.Body)
@@ -123,6 +141,7 @@ func TestClaudeExecutor_ExecuteStreamCloakedOAuthKeepsToolNamesByDefault(t *test
 }
 
 func TestClaudeExecutor_CountTokensCloakedOAuthKeepsToolNamesByDefault(t *testing.T) {
+	expectClaudeMCPToolAliasDisabled(t)
 	var upstreamBody []byte
 	transport := roundTripperFunc(func(req *http.Request) (*http.Response, error) {
 		var errRead error
