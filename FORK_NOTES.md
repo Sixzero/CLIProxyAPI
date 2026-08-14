@@ -139,14 +139,26 @@ here so they aren't lost / re-investigated.
     -d '{"model":"grok-4.5","messages":[{"role":"user","content":"reply exactly: PONG"}],"stream":false}'
   ```
 
-## Rebuild
+## Rebuild / deploy
 
 ```bash
-./scripts/rebuild-cliproxy.sh
+./scripts/rebuild-cliproxy.sh            # local only (default)
+./scripts/rebuild-cliproxy.sh --remote   # todoforai server only
+./scripts/rebuild-cliproxy.sh --all      # both
 ```
 
-Builds `cmd/server` and drops the binary at `/home/six/cliproxyapi/cli-proxy-api`,
-then restarts the user service. See the script for details.
+Two deployments run this fork, each as a **user** systemd unit
+(`cliproxyapi.service`):
+
+| target | binary | notes |
+| --- | --- | --- |
+| local | `/home/six/cliproxyapi/cli-proxy-api` | `systemctl --user ...` as `six` |
+| `ssh todoforai` | `/root/cliproxyapi/cli-proxy-api` | user unit **under root**: needs `XDG_RUNTIME_DIR=/run/user/0`, otherwise a system-level `systemctl is-active cliproxyapi` wrongly reports `inactive`. Built static (`CGO_ENABLED=0`) since the server's glibc may differ. |
+
+The running binary can't be overwritten (`Text file busy`), so the script
+stops the service, swaps the file (keeping a timestamped `.bak.*`) and
+starts it — the server drops in-flight requests for ~2s. `curl`ing
+`/v1/models` without a key returns `401`, which is the "it's up" signal.
 
 ## Regression test
 
