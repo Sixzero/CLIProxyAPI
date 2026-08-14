@@ -43,10 +43,15 @@ remote URLs (which have lagged behind on models we depend on).
 ### 3. MCP tool-name aliasing disabled by default
 
 **Files:** `internal/runtime/executor/claude_executor_request.go`,
-`internal/runtime/executor/claude_mcp_alias_fork_test.go`
+`internal/runtime/executor/claude_mcp_alias_fork_test.go`,
+plus one added line per opted-in test in
+`internal/runtime/executor/claude_executor_test.go` and
+`internal/runtime/executor/claude_executor_thinking_signature_test.go`
 
 Upstream (`e8d1b79c`, refined by `f3e25ab2`/`afdd251c`/`842dbe63`/`93c378b7`)
-rewrites *every* tool a cloaked OAuth caller declares into
+rewrites every *custom* tool a cloaked OAuth caller declares (names that
+already follow the MCP convention and typed Anthropic server tools are
+left alone) into
 `mcp__<hash12>__<hash12>_<name>`, restoring the original name from a
 request-local reverse map on the response. It is an anti-fingerprint
 measure, but it renames the tools the model reasons about and produced
@@ -54,9 +59,15 @@ measure, but it renames the tools the model reasons about and produced
 
 `prepareClaudeOAuthToolNamesForUpstream` now returns the body untouched
 with an empty reverse map (making every restore path a no-op) unless
-`CPA_CLAUDE_MCP_TOOL_ALIAS=1`. The fork test file sets that env var in
-`init()`, so upstream's alias tests keep running as written and stay
-conflict-free on rebase; one added test pins the disabled default.
+`CPA_CLAUDE_MCP_TOOL_ALIAS=1`.
+
+Tests keep the *fork's* behaviour as the suite default: the seven upstream
+tests that describe aliasing opt back in with a one-line
+`enableClaudeMCPToolAliasForTest(t)`, so a new upstream test that assumes
+aliasing fails loudly instead of silently hiding a regression in our
+default. Four fork-owned tests pin the disabled default — one on the
+helper and one per request path (execute, stream, count_tokens), because a
+call site bypassing the helper would still alias tools in production.
 
 Note the cheaper-looking alternative does *not* work: sending a
 `claude-cli/...` User-Agent no longer bypasses cloaking. Since the
