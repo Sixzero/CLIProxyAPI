@@ -11,6 +11,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"os"
 	"sort"
 	"strings"
 	"time"
@@ -1041,9 +1042,31 @@ func resolveClaudeMCPAliasOptions(ctx context.Context) claudeMCPAliasOptions {
 	return claudeMCPAliasOptions{secret: secret}
 }
 
+// claudeMCPToolAliasEnabled reports whether cloaked OAuth requests get their
+// tool names rewritten to `mcp__<server>__<tool>` aliases.
+//
+// FORK: off by default. The aliasing is an anti-fingerprint measure, but it
+// renames every tool the caller declared, and models then emit calls against
+// the alias — producing "invalid response" failures on `mcp__…__bash` and
+// generally making tool use harder to follow. Set
+// CPA_CLAUDE_MCP_TOOL_ALIAS=1 to restore upstream behavior.
+func claudeMCPToolAliasEnabled() bool {
+	switch strings.ToLower(strings.TrimSpace(os.Getenv("CPA_CLAUDE_MCP_TOOL_ALIAS"))) {
+	case "1", "true", "yes", "on":
+		return true
+	default:
+		return false
+	}
+}
+
 // prepareClaudeOAuthToolNamesForUpstream applies one request-local MCP symbol
 // table across every Claude OAuth request path.
 func prepareClaudeOAuthToolNamesForUpstream(body []byte, mcpAliases claudeMCPAliasOptions) ([]byte, map[string]string) {
+	if !claudeMCPToolAliasEnabled() {
+		// No aliases allocated, so the reverse map stays empty and every
+		// restore path downstream is a no-op.
+		return body, nil
+	}
 	return remapOAuthToolNamesWithOptions(body, mcpAliases)
 }
 
