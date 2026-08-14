@@ -89,6 +89,7 @@ func buildThinkingHistoryPayload(t *testing.T, signatures []string, firstUserTex
 // upstream request pipeline: cloaking (system blocks, currentDate, CCH signing)
 // followed by the OAuth MCP tool alias pass.
 func TestClaudeThinkingSignaturesSurviveUpstreamPreparation(t *testing.T) {
+	enableClaudeMCPToolAliasForTest(t)
 	signatures := thinkingSignatureFixtures()
 	payload := buildThinkingHistoryPayload(t, signatures, "first question")
 
