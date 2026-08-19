@@ -133,6 +133,10 @@ embedded `models/models.json` and never overwrites it from the remote
 catalogs (which have lagged on models we depend on). This replaced a fork
 patch that emptied `modelsURLs`.
 
+Both are deployment state, so **each host needs them separately** — the
+`payload` block in `config.yaml` and `--local-model` in `ExecStart`. Applied
+on local and on `ssh todoforai` (2026-08-19); a new host needs both again.
+
 ### xAI / Grok
 
 - **Support:** upstream (post rebase 2026-07-09). Full xAI integration —
