@@ -847,7 +847,7 @@ func (m *Manager) MarkResult(ctx context.Context, result Result) {
 								shouldSuspendModel = true
 								setModelQuota = true
 							}
-							if result.CredentialScope && !disableCooling {
+							if result.CredentialScope && !disableCooling && !isCredentialFanoutExempt(auth.Provider, modelKey) {
 								for _, otherState := range auth.ModelStates {
 									if otherState != nil && otherState != state {
 										otherState.Unavailable = true
@@ -1442,6 +1442,21 @@ func retryAfterFromError(err error) *time.Duration {
 	}
 	value := *retryAfter
 	return &value
+}
+
+// isCredentialFanoutExempt reports whether a credential-scoped rejection for this
+// model must not be widened to the credential's other models.
+//
+// Anthropic rejects claude-fable-5 with the same unified 5h/7d "rejected" headers
+// it uses for a genuine account-wide limit, but fable carries a smaller
+// subscription quota than the rest of the Claude line-up. Fanning that rejection
+// out cooled every Claude model on the credential — including an opus-5 that had
+// answered 200 a second earlier — for as long as the unified reset header demanded
+// (up to 7d). The rejected model still cools down through its own ModelState; only
+// the credential-wide fan-out is skipped.
+func isCredentialFanoutExempt(provider, model string) bool {
+	return strings.EqualFold(strings.TrimSpace(provider), "claude") &&
+		strings.HasPrefix(strings.ToLower(canonicalModelKey(model)), "claude-fable-")
 }
 
 func isCredentialScopedError(err error) bool {

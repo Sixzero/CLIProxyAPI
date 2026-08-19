@@ -313,3 +313,73 @@ func (s *mockCooldownStateStore) Load(context.Context) ([]CooldownStateRecord, e
 func (s *mockCooldownStateStore) Save(context.Context, []CooldownStateRecord) error {
 	return nil
 }
+
+// claude-fable-5 carries a smaller subscription quota than the rest of the Claude
+// line-up, yet Anthropic rejects it with the same unified 5h/7d headers used for a
+// genuine account-wide limit. Widening that rejection to the credential cooled
+// sibling models that were still answering 200.
+func TestAuthManager_ClaudeFable429DoesNotCoolSiblingModels(t *testing.T) {
+	manager := NewManager(nil, nil, nil)
+
+	auth := &Auth{
+		ID:         uuid.NewString() + "-claude-fable",
+		Provider:   "claude",
+		Attributes: map[string]string{"api_key": "test-key"},
+	}
+
+	reg := registry.GetGlobalRegistry()
+	reg.RegisterClient(auth.ID, "claude", []*registry.ModelInfo{
+		{ID: "claude-fable-5"},
+		{ID: "claude-opus-5"},
+	})
+	t.Cleanup(func() { reg.UnregisterClient(auth.ID) })
+
+	if _, err := manager.Register(context.Background(), auth); err != nil {
+		t.Fatalf("register auth: %v", err)
+	}
+
+	// opus-5 answers normally, then a fable-5 request is rejected with the
+	// unified 7d headers that mark the failure credential-scoped.
+	manager.MarkResult(context.Background(), Result{
+		AuthID:   auth.ID,
+		Provider: "claude",
+		Model:    "claude-opus-5",
+		Success:  true,
+	})
+
+	sevenDays := 7 * 24 * time.Hour
+	manager.MarkResult(context.Background(), Result{
+		AuthID:          auth.ID,
+		Provider:        "claude",
+		Model:           "claude-fable-5(high)",
+		Success:         false,
+		RetryAfter:      &sevenDays,
+		CredentialScope: true,
+		Error:           &Error{HTTPStatus: http.StatusTooManyRequests, Message: "7d limit rejected"},
+	})
+
+	updated, ok := manager.GetByID(auth.ID)
+	if !ok || updated == nil {
+		t.Fatal("auth not found")
+	}
+
+	now := time.Now()
+	if blocked, _, _ := isAuthBlockedForModel(updated, "claude-fable-5", now); !blocked {
+		t.Fatal("claude-fable-5 must cool down after its own 429")
+	}
+	if blocked, reason, next := isAuthBlockedForModel(updated, "claude-opus-5", now); blocked {
+		t.Fatalf("claude-opus-5 was blocked by a fable-5 rate limit: reason=%v next=%v", reason, next)
+	}
+
+	// The rejection must stay model-scoped in the stored state too, so a later
+	// selector change cannot resurrect the credential-wide block.
+	if updated.Quota.Reason == "credential_quota" {
+		t.Fatalf("credential marked credential_quota by a fable-5 rate limit: %+v", updated.Quota)
+	}
+	if fable := updated.ModelStates["claude-fable-5"]; fable == nil || !fable.Unavailable {
+		t.Fatalf("claude-fable-5 state must be cooled down, got %+v", fable)
+	}
+	if opus := updated.ModelStates["claude-opus-5"]; opus != nil && (opus.Unavailable || opus.Quota.Reason == "credential_quota") {
+		t.Fatalf("claude-opus-5 state was cooled by a fable-5 rate limit: %+v", opus)
+	}
+}
