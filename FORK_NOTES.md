@@ -8,6 +8,14 @@ runtime/deployment state worth remembering.
 Goal is to keep this list shrinking: prefer upstream absorbing our behavior
 over carrying patches.
 
+- **Remote model catalog fetch disabled** (2026-08-19, `modelsURLs = []`)
+  — upstream's `--local-model` flag does exactly this ("Local model mode:
+  using embedded model catalogs, remote model updates disabled"), so the
+  patch was reverted and the flag added to the systemd unit's `ExecStart`.
+- **Anthropic thinking display** (2026-08-19, never committed) — the empty
+  thinking text is fixed with an upstream `payload.default` config rule
+  instead of a code patch, see "Anthropic thinking summaries" below.
+
 - **OAuth system-prompt passthrough** (`sanitizeForwardedSystemPrompt`
   removal) — upstream `ef89c6a6` now preserves the caller's system prompt
   verbatim: real mid-conversation `system` turn on current models, legacy
@@ -32,15 +40,7 @@ When every candidate auth is blocked by a non-quota cooldown, the
 upstream error: overloaded (status 502); retry in 1m30s") instead of a
 bare "no auth available".
 
-### 2. Remote model catalog fetch disabled
-
-**File:** `internal/registry/model_updater.go`
-
-`modelsURLs` is emptied so the registry relies only on the embedded
-`models/models.json` catalog and never overwrites it from the upstream
-remote URLs (which have lagged behind on models we depend on).
-
-### 3. MCP tool-name aliasing disabled by default
+### 2. MCP tool-name aliasing disabled by default
 
 **Files:** `internal/runtime/executor/claude_executor_request.go`,
 `internal/runtime/executor/claude_mcp_alias_fork_test.go`,
@@ -76,7 +76,7 @@ Note the cheaper-looking alternative does *not* work: sending a
 `claude-code-20250219` beta, and a well-formed `metadata.user_id` —
 so a UA alone leaves `Confirmed=false` and the request still cloaked.
 
-### 4. (external) Julia client fix
+### 3. (external) Julia client fix
 
 Not in this repo, but required for the passthrough to do anything:
 `/home/six/repo/OpenRouter.jl/src/schemas.jl` —
@@ -86,8 +86,52 @@ can see it.
 
 ## Runtime setup (not code patches — deployment state)
 
-These live in `~/.cli-proxy-api/*.json` (auth dir), not in the repo. Kept
-here so they aren't lost / re-investigated.
+These live in `~/.cli-proxy-api/*.json` (auth dir) and `config.yaml`, not in
+the repo. Kept here so they aren't lost / re-investigated.
+
+### Anthropic thinking summaries (config, not a patch)
+
+Cloaked/translated requests always claim `cc_entrypoint=cli`, so
+`claudeCodeCLIBetas` sends `redact-thinking-2026-02-12` and Anthropic
+answers with thinking blocks carrying a signature and an **empty**
+`thinking` field — thinking tokens billed, nothing shown. Upstream's only
+switch is `claudeThinkingDisplaySet`: a body-level `thinking.display`
+suppresses that beta (upstream `9b114239`).
+
+Fixed with zero code, in `~/cliproxyapi/config.yaml` (hot-reloaded):
+
+```yaml
+payload:
+  default:                       # only fills the field when the caller omitted it
+    - models:
+        - name: "claude-*"
+          protocol: "claude"
+          exist:
+            - "thinking.type"    # REQUIRED: without it every non-thinking
+                                 # request gets a bare display and Anthropic
+                                 # returns "thinking.type: Field required"
+      params:
+        "thinking.display": "summarized"
+```
+
+Verified: `(high)` suffix, explicit `thinking.type=enabled`, streaming and
+the OpenAI chat-completions path all return thinking text; a request
+without thinking still works; a caller-supplied `display:"omitted"` is
+preserved; `tool_choice:{"type":"any"}` still succeeds (upstream's
+`disableThinkingIfToolChoiceForced` removes the whole `thinking` object).
+
+Note the `anthropic-beta: interleaved-thinking-2025-05-14` header the Julia
+client sends (`OpenRouterCLIProxyAPI.jl`, `ANTHROPIC_THINKING_HEADERS`) is a
+**no-op** for cloaked requests: the beta list is rebuilt server-side and an
+unconfirmed caller's own betas are dropped. It only appeared to work in
+early 2026-08 because the beta list looked different then.
+
+### Local model catalog
+
+The systemd unit runs `cli-proxy-api --local-model` so the registry uses the
+embedded `models/models.json` and never overwrites it from the remote
+catalogs (which have lagged on models we depend on). This replaced a fork
+patch that emptied `modelsURLs`.
 
 ### xAI / Grok
 
@@ -155,6 +199,16 @@ Two deployments run this fork, each as a **user** systemd unit
 | local | `/home/six/cliproxyapi/cli-proxy-api` | `systemctl --user ...` as `six` |
 | `ssh todoforai` | `/root/cliproxyapi/cli-proxy-api` | user unit **under root**: needs `XDG_RUNTIME_DIR=/run/user/0`, otherwise a system-level `systemctl is-active cliproxyapi` wrongly reports `inactive`. Built static (`CGO_ENABLED=0`) since the server's glibc may differ. |
 
+**Trap (2026-08-18):** a *second*, system-level unit
+`/etc/systemd/system/cli-proxy-api.service` (note the dashes) also runs the
+same binary as user `six` and had been holding port 8317 since Aug 15, so
+the user unit restart-looped on "address already in use" and the rebuilt
+binary never took effect (deleted inode still served requests). If a fresh
+build seems to change nothing, check `ss -tlnp | grep 8317` and
+`ls -l /proc/<pid>/exe` for a `(deleted)` target. The system unit should
+probably be disabled for good (`sudo systemctl disable --now
+cli-proxy-api`), needs root.
+
 The running binary can't be overwritten (`Text file busy`), so the script
 stops the service, swaps the file (keeping a timestamped `.bak.*`) and
 starts it — the server drops in-flight requests for ~2s. `curl`ing
@@ -189,12 +243,16 @@ Expected: opus-4.7 and sonnet-4.6 return `PEACH`; haiku may refuse.
 - PR #2845 — opaque tool aliasing (`t1, t2, ...` with response
   restoration) to mask large tool-count fingerprint. Too invasive to
   carry locally; track for future adoption.
+- Worth upstreaming from this fork: (a) the enriched `auth_unavailable`
+  error (patch 1) and (b) a config toggle for MCP tool aliasing (patch 2),
+  which would leave the fork with zero code patches. Both are currently
+  carried only because upstream offers no switch.
 
 ## Known remaining fingerprint axes
 
 1. **Tool names** — we expose `Bash`, `Read`, etc. but under non-CC names
    in some paths. Aligning to CC canonical names may relax haiku.
    (Upstream's MCP aliasing addressed this axis, but at the cost of the
-   model's own tool names — see active patch 3.)
+   model's own tool names — see active patch 2.)
 2. **Tool count** — CC exposes ~14 tools, we expose ~90. Only PR #2845
    would fix this scalably.
