@@ -76,7 +76,21 @@ Note the cheaper-looking alternative does *not* work: sending a
 `claude-code-20250219` beta, and a well-formed `metadata.user_id` —
 so a UA alone leaves `Confirmed=false` and the request still cloaked.
 
-### 3. (external) Julia client fix
+### 3. claude-fable 429 no longer cools sibling Claude models
+
+`sdk/cliproxy/auth/conductor_cooldown.go` — Anthropic rejects
+`claude-fable-5` with the same unified 5h/7d "rejected" headers it uses
+for a genuine account-wide limit, but fable has a smaller subscription
+quota than the rest of the line-up. The credential-scoped fan-out
+therefore cooled every Claude model on the credential (opus included)
+for up to 7 days until a restart. `isCredentialFanoutExempt` skips the
+fan-out for `claude-fable-*`; the rejected model still cools through its
+own ModelState with the full header deadline. Regression test:
+`TestAuthManager_ClaudeFable429DoesNotCoolSiblingModels` (fails with the
+guard reverted). If another narrow-quota model appears, extend the
+prefix check.
+
+### 4. (external) Julia client fix
 
 Not in this repo, but required for the passthrough to do anything:
 `/home/six/repo/OpenRouter.jl/src/schemas.jl` —
