@@ -140,16 +140,35 @@ client sends (`OpenRouterCLIProxyAPI.jl`, `ANTHROPIC_THINKING_HEADERS`) is a
 unconfirmed caller's own betas are dropped. It only appeared to work in
 early 2026-08 because the beta list looked different then.
 
-### Local model catalog
+### Model catalog: remote fetch is ON again (2026-09-02)
 
-The systemd unit runs `cli-proxy-api --local-model` so the registry uses the
-embedded `models/models.json` and never overwrites it from the remote
-catalogs (which have lagged on models we depend on). This replaced a fork
-patch that emptied `modelsURLs`.
+`--local-model` was dropped from both `ExecStart`s. It pinned the registry to
+the embedded `models/models.json`, and that file did not have
+`claude-fable-5-1` while the remote catalog
+(`router-for-me/models/models.json`) did — the opposite of the lag that made
+us add the flag in 2026-08. Without the flag the catalog refreshes from
+remote on startup and every 3 h. If remote lags again, the alternative is a
+fork commit adding the model to the embedded JSON + rebuild, not the flag.
 
-Both are deployment state, so **each host needs them separately** — the
-`payload` block in `config.yaml` and `--local-model` in `ExecStart`. Applied
-on local and on `ssh todoforai` (2026-08-19); a new host needs both again.
+### Claude Code version we impersonate (config, not a patch)
+
+Anthropic gates new models on the *client version* in the cloaked headers:
+`claude-fable-5-1` answered `Claude Code 2.1.220 does not support this
+model; version 2.1.251 or newer is required`. The version comes from the
+User-Agent baseline in `claude_device_profile.go`, overridable per host in
+`config.yaml` (hot-reloaded, no rebuild):
+
+```yaml
+claude-header-defaults:
+  user-agent: "claude-cli/2.1.251 (external, cli)"
+```
+
+Applied on local and `ssh todoforai` (2026-09-02); a new host needs it too.
+Bump the number the next time a model rejects with the same message.
+Regression-checked after the bump: opus-4.7 / sonnet-4.6 / opus-5(high) /
+fable-5(high) still answer (see "Regression test" below).
+
+The `payload` block in `config.yaml` is likewise per-host state.
 
 ### xAI / Grok
 
@@ -226,6 +245,12 @@ build seems to change nothing, check `ss -tlnp | grep 8317` and
 `ls -l /proc/<pid>/exe` for a `(deleted)` target. The system unit should
 probably be disabled for good (`sudo systemctl disable --now
 cli-proxy-api`), needs root.
+
+**Server (2026-09-02):** the mirror image of the same trap — a *system*
+unit `/etc/systemd/system/cliproxyapi.service` (root) held 8317 while the
+*user* unit restart-looped. Resolved by disabling the user unit; on
+`ssh todoforai` the **system unit is the live one** now
+(`systemctl restart cliproxyapi`, no `XDG_RUNTIME_DIR` dance).
 
 The running binary can't be overwritten (`Text file busy`), so the script
 stops the service, swaps the file (keeping a timestamped `.bak.*`) and
