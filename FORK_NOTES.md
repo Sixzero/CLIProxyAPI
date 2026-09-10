@@ -230,7 +230,8 @@ Routing was fine. Check: `jq '{email,expired}' ~/.cli-proxy-api/claude-*.json`.
 Fix: re-login locally (`./cli-proxy-api -config config.yaml -claude-login
 -no-browser`, keep it running with a live stdin until the `localhost:54545`
 callback lands; each restart mints a new `state`), then `scp` the JSON to
-`todoforai:/root/.cli-proxy-api/` and `systemctl restart cliproxyapi`.
+`todoforai:/root/.cli-proxy-api/` — auth-dir is hot-reloaded, **no restart**
+(never restart cliproxyapi or the backend on prod without explicit approval).
 Don't set `weight` by hand: the todoforai backend's `ProviderWeightService`
 recomputes it hourly as remaining weekly quota / hours until reset, via the
 management API. Note `session-affinity` (3h) means only *new* bindings follow
