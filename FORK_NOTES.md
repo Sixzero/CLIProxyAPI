@@ -232,8 +232,8 @@ Fix: re-login locally (`./cli-proxy-api -config config.yaml -claude-login
 callback lands; each restart mints a new `state`), then `scp` the JSON to
 `todoforai:/root/.cli-proxy-api/` — auth-dir is hot-reloaded, no restart needed.
 Restarting `cliproxyapi` is OK; on **prod** never directly restart the backend
-(pm2 `backend-4000`) or the agent — they deploy with zero downtime; a manual
-restart drops live connections.
+(pm2 `backend-4000`) or the agent. The allowed way is a commit to the `prod`
+branch, which deploys zero-downtime; a manual restart drops live connections.
 Don't set `weight` by hand: the todoforai backend's `ProviderWeightService`
 recomputes it hourly as remaining weekly quota / hours until reset, via the
 management API. Note `session-affinity` (3h) means only *new* bindings follow
