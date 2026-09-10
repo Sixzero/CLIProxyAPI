@@ -220,6 +220,48 @@ The `payload` block in `config.yaml` is likewise per-host state.
     -d '{"model":"grok-4.5","messages":[{"role":"user","content":"reply exactly: PONG"}],"stream":false}'
   ```
 
+### Claude OAuth auth silently dropping out of weighted-round-robin (2026-09-10)
+
+**Symptom:** `routing.strategy: weighted-round-robin` "looks broken" — one
+Claude auth (`claude-havlikmarcell@gmail.com.json`, weight 23) got ~1% of
+new session bindings while the other two got ~50/50.
+
+**Cause:** its Anthropic refresh token had expired (access token lives 8h;
+once the proxy can't refresh, the refresh token itself eventually dies).
+`journalctl -u cliproxyapi` showed repeated
+`anthropic_auth.go:655 Token refresh attempt 1 failed: ... "Refresh token
+expired"`, and `expired` in the JSON stayed in the past. The selector treats
+it as unavailable, so WRR only rotated the two healthy auths. Routing config
+was fine; the few hits it still got were failover rebinds.
+
+**How to spot:** `jq '{email,expired,last_refresh,weight}' ~/.cli-proxy-api/claude-*.json`
+— any `expired` older than now = dead; confirm with
+`journalctl -u cliproxyapi | grep "Refresh token expired"`.
+
+**Fix (re-login from a local machine, the server has no browser):**
+1. Locally: `cd ~/cliproxyapi && ./cli-proxy-api -config config.yaml -claude-login -no-browser`.
+   The process must keep a live stdin and stay running until the callback
+   arrives (it also prompts "Paste the Claude callback URL"); `nohup` with
+   no stdin kills it, and each restart mints a new `state` — a callback from
+   an older URL fails with `State mismatch`.
+2. Open the printed URL logged in as the right Claude account; the redirect
+   to `http://localhost:54545/callback?code=...&state=...` hits the local
+   listener. If the browser can't reach it, `curl` that callback URL.
+3. `chmod 600`, `scp` to `todoforai:/root/.cli-proxy-api/` and
+   `systemctl restart cliproxyapi` (auth-dir is watched, but a restart makes
+   the selector re-read cleanly).
+4. Don't hand-set `weight`: login writes the JSON without it, and the
+   todoforai backend's `ProviderWeightService`
+   (`backend/src/services/ProviderWeightService.ts`) recomputes weights for
+   every claude/codex auth hourly from remaining weekly quota via the
+   management API (`PATCH auth-files/fields`). A missing weight is filled on
+   the next sweep.
+
+**Also note:** `session-affinity: true, ttl: 3h` means WRR only decides on
+*new* bindings; total request share per auth won't match the weights, only
+the `cache miss, new binding` count does:
+`journalctl -u cliproxyapi --since "6 hours ago" | grep "new binding" | grep -o "auth=[^ ]*" | sort | uniq -c`.
+
 ## Rebuild / deploy
 
 ```bash
