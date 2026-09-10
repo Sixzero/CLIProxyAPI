@@ -231,8 +231,8 @@ Fix: re-login locally (`./cli-proxy-api -config config.yaml -claude-login
 -no-browser`, keep it running with a live stdin until the `localhost:54545`
 callback lands; each restart mints a new `state`), then `scp` the JSON to
 `todoforai:/root/.cli-proxy-api/` — auth-dir is hot-reloaded, no restart needed.
-Restarting `cliproxyapi` is OK; **never directly restart the backend or the
-agent** on prod (pm2 `backend-4000`, agent) — those have their own deploy.
+Restarting `cliproxyapi` is OK; on **prod** never directly restart the backend
+(pm2 `backend-4000`) or the agent — those have their own deploy.
 Don't set `weight` by hand: the todoforai backend's `ProviderWeightService`
 recomputes it hourly as remaining weekly quota / hours until reset, via the
 management API. Note `session-affinity` (3h) means only *new* bindings follow
