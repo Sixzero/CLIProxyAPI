@@ -142,7 +142,10 @@ early 2026-08 because the beta list looked different then.
 
 ### Model catalog: remote fetch is ON again (2026-09-02)
 
-`--local-model` was dropped from both `ExecStart`s. It pinned the registry to
+`--local-model` was dropped from both `ExecStart`s (server 2026-09-02; the
+local user unit still had it until 2026-09-23 — `claude-opus-5-5` answered
+`unknown provider for model` because the embedded catalog lacked it). It
+pinned the registry to
 the embedded `models/models.json`, and that file did not have
 `claude-fable-5-1` while the remote catalog
 (`router-for-me/models/models.json`) did — the opposite of the lag that made
@@ -160,13 +163,25 @@ User-Agent baseline in `claude_device_profile.go`, overridable per host in
 
 ```yaml
 claude-header-defaults:
-  user-agent: "claude-cli/2.1.251 (external, cli)"
+  user-agent: "claude-cli/2.1.280 (external, cli)"
 ```
 
-Applied on local and `ssh todoforai` (2026-09-02); a new host needs it too.
-Bump the number the next time a model rejects with the same message.
-Regression-checked after the bump: opus-4.7 / sonnet-4.6 / opus-5(high) /
-fable-5(high) still answer (see "Regression test" below).
+History: 2.1.251 for `claude-fable-5-1` (2026-09-02), 2.1.280 for
+`claude-opus-5-5` (2026-09-23). Applied on local and `ssh todoforai`; a new
+host needs it too. Bump the number the next time a model rejects with the
+same message — upstream's `defaultClaudeFingerprintUserAgent` in
+`claude_device_profile.go` is the hint for a known-good value.
+Regression-checked after each bump: opus-4.7 / sonnet-4.6 / opus-5-5 still
+answer (see "Regression test" below).
+
+**Hot-reload caveat (2026-09-23):** on the server the UA edit was *not*
+picked up by the watcher (still sent 2.1.251 after the edit); a
+`systemctl restart cliproxyapi` was needed. Locally the restart happened
+anyway. Don't trust "hot-reloaded" for this key — verify with a request.
+
+**Do NOT "fix" this by swapping in an upstream release binary** — the
+deployed binary is this fork (3 code patches above); an upstream tarball
+silently drops them. Rebuild via `scripts/rebuild-cliproxy.sh` instead.
 
 The `payload` block in `config.yaml` is likewise per-host state.
 
