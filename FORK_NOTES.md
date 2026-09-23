@@ -185,25 +185,12 @@ silently drops them. Rebuild via `scripts/rebuild-cliproxy.sh` instead.
 
 The `payload` block in `config.yaml` is likewise per-host state.
 
-### New model release checklist (DON'T FORGET — 2026-09-23)
+### New model release (DON'T FORGET — 2026-09-23)
 
-The `claude` alias silently stayed on opus-4.8 while opus-5 and 5.5 shipped:
-58 agents on `model=claude` ran the old model for months. On every new
-Anthropic / OpenAI flagship, walk all of these:
-
-1. **OpenRouter.jl alias** — `OpenRouter.jl/src/storage.jl` `MODEL_ALIASES`
-   (`"claude" =>`, `"gpt5" =>`). This is what `model=claude` agents resolve to
-   (todoforai/agent has no own `claude` alias). Commit + restart/deploy agent.
-2. **CLIProxyAPI catalog** — model must be in the remote/embedded catalog
-   (see "Model catalog" above), else `unknown provider for model`.
-3. **Claude Code UA** — bump `claude-header-defaults.user-agent` if Anthropic
-   answers `version X or newer is required` (see section above). Restart.
-4. **Explicitly pinned agents** — `tfa-cli agent list --json | jq -r
-   '.[] | "\(.model)\t\(.name)"' | sort` ; prefer moving them back to `claude`.
-5. **Hardcoded fallbacks** — `rg -n 'claude-opus-[0-9]' todoforai/agent/src
-   todoforai/backend/src todoforai/frontend/src` (e.g. `subagent_todo.jl`,
-   `DiscountedModelsSection.tsx`, `model_promos.json`).
-6. Verify with a real request through the alias, not just the diff.
+The `claude` alias silently stayed on opus-4.8 while opus-5 and 5.5 shipped.
+Full checklist + automation plan: `todoforai/agent/scripts/newmodel_playbook.md`.
+Proxy-side items: model in the catalog ("Model catalog" above), Claude Code UA
+bump if version-gated (next section) + restart, then one real request.
 
 ### xAI / Grok
 
