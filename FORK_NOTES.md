@@ -120,6 +120,15 @@ Local gotcha found the same day: a stale SYSTEM unit
 user unit crash-looped on `address already in use` after rebuild. Killed the
 process; the unit is `disabled`, so it does not come back on reboot.
 
+### 7. `(none)` → `between_tools` for Sonnet 5.5 (2026-09-28)
+
+**File:** `internal/thinking/provider/claude/apply.go` (`claudeBetweenToolsModels`)
+
+Sonnet 5.5 rejects `thinking.type: disabled`; its lowest setting is
+`between_tools` (no upfront thinking, short notes between tool calls only).
+`(none)`/`(0)` now send that for listed ids. Opus 5.5 accepts neither, so it
+still 400s on `(none)`. Test: `apply_between_tools_test.go`.
+
 ### 4. (external) Julia client fix
 
 Not in this repo, but required for the passthrough to do anything:
