@@ -3,8 +3,9 @@
 #
 # Targets (pick with --local / --remote / --all, default --local):
 #   local   /home/six/cliproxyapi/cli-proxy-api      (user unit, this machine)
-#   remote  todoforai:/root/cliproxyapi/cli-proxy-api (user unit under root;
-#           needs XDG_RUNTIME_DIR=/run/user/0, or systemctl reports it inactive)
+#   remote  todoforai:/root/cliproxyapi/cli-proxy-api (SYSTEM unit
+#           /etc/systemd/system/cliproxyapi.service since 2026-09-02; the old
+#           root user unit is disabled — see FORK_NOTES.md "Server")
 #
 # The binary cannot be overwritten while running ("Text file busy"), so each
 # target stops the service, swaps the file and starts it again. In-flight
@@ -58,12 +59,13 @@ if $do_remote; then
   CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -trimpath -ldflags="-s -w" \
     -o "/tmp/$BIN_NAME.remote" ./cmd/server
   scp -q "/tmp/$BIN_NAME.remote" "$REMOTE_HOST:$REMOTE_DIR/$BIN_NAME.new"
-  ssh "$REMOTE_HOST" "export XDG_RUNTIME_DIR=/run/user/0; cd '$REMOTE_DIR' \
+  ssh "$REMOTE_HOST" "cd '$REMOTE_DIR' \
     && cp -f '$BIN_NAME' '$BIN_NAME.bak.\$(date +%Y%m%d-%H%M%S)' \
-    && systemctl --user stop '$SERVICE' && sleep 1 \
+    && systemctl stop '$SERVICE' && sleep 1 \
     && mv -f '$BIN_NAME.new' '$BIN_NAME' && chmod +x '$BIN_NAME' \
-    && systemctl --user start '$SERVICE' && sleep 3 \
-    && systemctl --user is-active '$SERVICE'"
+    && systemctl start '$SERVICE' && sleep 3 \
+    && systemctl is-active '$SERVICE' \
+    && curl -s -o /dev/null -w 'smoke /v1/models: %{http_code} (401 = up)\n' http://localhost:8317/v1/models"
 fi
 
 echo "==> done. A 401 from the smoke test means the server is up (auth missing):"
