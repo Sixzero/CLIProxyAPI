@@ -106,6 +106,20 @@ ssh todoforai 'journalctl -u cliproxyapi --since "YYYY-MM-DD HH:00" --until "...
   | grep "auth=claude-<acct>" | grep -o "session=[^ ]*" | sort | uniq -c | sort -rn'
 ```
 
+### 6. Claude built-ins for models the catalog lags on (2026-09-28)
+
+**File:** `internal/registry/model_definitions.go` (`withClaudeBuiltins`)
+
+`claude-sonnet-5-5` shipped before `router-for-me/models` listed it; the
+remote refresh (every 3 h) replaces the embedded JSON, so editing
+`models/models.json` alone would be undone. The built-in only fills gaps —
+once the catalog has the id, delete it from `claudeBuiltinModelInfos`.
+
+Local gotcha found the same day: a stale SYSTEM unit
+`/etc/systemd/system/cli-proxy-api.service` (old binary) held :8317, so the
+user unit crash-looped on `address already in use` after rebuild. Killed the
+process; `sudo systemctl disable --now cli-proxy-api` still needed.
+
 ### 4. (external) Julia client fix
 
 Not in this repo, but required for the passthrough to do anything:
