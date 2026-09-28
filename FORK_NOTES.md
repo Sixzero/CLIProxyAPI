@@ -118,7 +118,8 @@ once the catalog has the id, delete it from `claudeBuiltinModelInfos`.
 Local gotcha found the same day: a stale SYSTEM unit
 `/etc/systemd/system/cli-proxy-api.service` (old binary) held :8317, so the
 user unit crash-looped on `address already in use` after rebuild. Killed the
-process; `sudo systemctl disable --now cli-proxy-api` still needed.
+process; the unit is `disabled`, so it does not come back on reboot. The rebuild
+script now refuses to run while it is enabled/active.
 
 ### 4. (external) Julia client fix
 
