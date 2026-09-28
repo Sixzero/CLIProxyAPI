@@ -41,14 +41,6 @@ esac
 cd "$REPO_DIR"
 
 if $do_local; then
-  # A stale SYSTEM unit (/etc/systemd/system/cli-proxy-api.service) once held
-  # :8317 with an old binary, so the user unit crash-looped after rebuild.
-  if systemctl is-enabled --quiet cli-proxy-api.service 2>/dev/null \
-     || systemctl is-active --quiet cli-proxy-api.service 2>/dev/null; then
-    echo "conflicting system unit cli-proxy-api.service is enabled/active; run once:" >&2
-    echo "  sudo systemctl disable --now cli-proxy-api.service" >&2
-    exit 1
-  fi
   echo "==> local: go build -> $INSTALL_DIR/$BIN_NAME"
   mkdir -p "$INSTALL_DIR"
   go build -o "/tmp/$BIN_NAME.local" ./cmd/server
