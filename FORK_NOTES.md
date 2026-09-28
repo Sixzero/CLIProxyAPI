@@ -291,7 +291,7 @@ Two deployments run this fork, each as a **user** systemd unit
 | target | binary | notes |
 | --- | --- | --- |
 | local | `/home/six/cliproxyapi/cli-proxy-api` | `systemctl --user ...` as `six` |
-| `ssh todoforai` | `/root/cliproxyapi/cli-proxy-api` | user unit **under root**: needs `XDG_RUNTIME_DIR=/run/user/0`, otherwise a system-level `systemctl is-active cliproxyapi` wrongly reports `inactive`. Built static (`CGO_ENABLED=0`) since the server's glibc may differ. |
+| `ssh todoforai` | `/root/cliproxyapi/cli-proxy-api` | **system** unit `/etc/systemd/system/cliproxyapi.service` (since 2026-09-02, see below). Built static (`CGO_ENABLED=0`) since the server's glibc may differ. |
 
 **Trap (2026-08-18):** a *second*, system-level unit
 `/etc/systemd/system/cli-proxy-api.service` (note the dashes) also runs the
