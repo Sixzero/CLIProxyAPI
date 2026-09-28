@@ -9,11 +9,28 @@
 package claude
 
 import (
+	"strings"
+
 	"github.com/router-for-me/CLIProxyAPI/v7/internal/registry"
 	"github.com/router-for-me/CLIProxyAPI/v7/internal/thinking"
 	"github.com/tidwall/gjson"
 	"github.com/tidwall/sjson"
 )
+
+// claudeBetweenToolsModels (fork) reject thinking.type="disabled" with a 400;
+// their lowest setting is "between_tools" (no upfront thinking, only brief
+// notes between tool calls). Verified on claude-sonnet-5-5, 2026-09-28.
+// claude-opus-5-5 accepts neither, so it keeps "disabled" and fails loudly.
+var claudeBetweenToolsModels = map[string]bool{
+	"claude-sonnet-5-5": true,
+}
+
+func claudeDisabledThinkingType(modelInfo *registry.ModelInfo) string {
+	if modelInfo != nil && claudeBetweenToolsModels[strings.ToLower(modelInfo.ID)] {
+		return "between_tools"
+	}
+	return "disabled"
+}
 
 // Applier implements thinking.ProviderApplier for Claude models.
 // This applier is stateless and holds no configuration.
@@ -85,7 +102,7 @@ func (a *Applier) Apply(body []byte, config thinking.ThinkingConfig, modelInfo *
 
 	switch config.Mode {
 	case thinking.ModeNone:
-		result, _ := sjson.SetBytes(body, "thinking.type", "disabled")
+		result, _ := sjson.SetBytes(body, "thinking.type", claudeDisabledThinkingType(modelInfo))
 		result, _ = sjson.DeleteBytes(result, "thinking.budget_tokens")
 		// Summary display only applies to an active thinking block.
 		result, _ = sjson.DeleteBytes(result, "thinking.display")
