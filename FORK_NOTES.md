@@ -90,6 +90,22 @@ own ModelState with the full header deadline. Regression test:
 guard reverted). If another narrow-quota model appears, extend the
 prefix check.
 
+### 5. Full session ID in session-affinity logs (2026-09-28)
+
+**File:** `sdk/cliproxy/auth/selector.go` (`truncateSessionID`)
+
+Upstream logs `session=claude:v...` (8 chars). We log the full ID (cap 128)
+because it is our todoId: when an OAuth account gets banned
+(`account_on_hold`, e.g. claude-tamashavlik 2026-09-26 ~17:0x) we grep the
+journal for `auth=<account>` around the ban time -> todoIds -> users, and the
+prompts themselves are in the backend DB (todos are soft-deleted). Cheap
+replacement for `request-log: true` (~1 GB/h, turned off again).
+
+```bash
+ssh todoforai 'journalctl -u cliproxyapi --since "YYYY-MM-DD HH:00" --until "..." -o cat \
+  | grep "auth=claude-<acct>" | grep -o "session=[^ ]*" | sort | uniq -c | sort -rn'
+```
+
 ### 4. (external) Julia client fix
 
 Not in this repo, but required for the passthrough to do anything:

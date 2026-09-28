@@ -1319,12 +1319,15 @@ func selectorLogEntry(ctx context.Context) *log.Entry {
 	return log.NewEntry(log.StandardLogger())
 }
 
-// truncateSessionID shortens session ID for logging (first 8 chars + "...")
+// truncateSessionID returns the session ID for logging. Fork: logged in full
+// (was first 8 chars + "...") so a banned OAuth account can be traced back to
+// the todo/user that drove it — the session ID is our todoId, not a secret.
+// Capped only to keep a malicious client-supplied header from bloating logs.
 func truncateSessionID(id string) string {
-	if len(id) <= 20 {
+	if len(id) <= 128 {
 		return id
 	}
-	return id[:8] + "..."
+	return id[:128] + "..."
 }
 
 // Stop releases resources held by the selector.
