@@ -214,6 +214,9 @@ deployed binary is this fork (3 code patches above); an upstream tarball
 silently drops them. Rebuild via `scripts/rebuild-cliproxy.sh` instead.
 
 The `payload` block in `config.yaml` is likewise per-host state.
+Its `thinking.display: summarized` rule must skip `thinking.type` `disabled`
+and `between_tools` (`not-match`, 2026-09-28): Anthropic rejects `display` on
+those with `Extra inputs are not permitted`, which broke every `(none)` request.
 
 ### New model release (DON'T FORGET — 2026-09-23)
 
