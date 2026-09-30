@@ -1993,3 +1993,19 @@ func TestConvertOpenAIRequestToCodexParallelToolCalls(t *testing.T) {
 		})
 	}
 }
+
+// FORK: implicit medium effort must come with a visible summary; an explicit
+// effort leaves summary to thinking.ExtractSummaryConfig (upstream behavior).
+func TestReasoningSummaryDefaultsOnlyWithoutEffort(t *testing.T) {
+	out, _ := ConvertOpenAIRequestToCodex("gpt-5.5", []byte(`{"model":"gpt-5.5","messages":[{"role":"user","content":"hi"}]}`), false)
+	if got := ojson.GetBytesNoCopy(out, "reasoning.effort").String(); got != "medium" {
+		t.Fatalf("reasoning.effort = %q, want medium", got)
+	}
+	if got := ojson.GetBytesNoCopy(out, "reasoning.summary").String(); got != "auto" {
+		t.Fatalf("reasoning.summary = %q, want auto; body=%s", got, out)
+	}
+	out, _ = ConvertOpenAIRequestToCodex("gpt-5.5", []byte(`{"model":"gpt-5.5","reasoning_effort":"none","messages":[{"role":"user","content":"hi"}]}`), false)
+	if r := ojson.GetBytesNoCopy(out, "reasoning.summary"); r.Exists() {
+		t.Fatalf("reasoning.summary = %s, want absent for explicit effort; body=%s", r.Raw, out)
+	}
+}

@@ -61,6 +61,11 @@ func convertOpenAIRequestToCodex(modelName string, inputRawJSON []byte, stream b
 		_ = outDoc.Set("reasoning.effort", v.Value())
 	} else {
 		_ = outDoc.Set("reasoning.effort", "medium")
+		// FORK: the implicit medium effort is billed thinking, so make it
+		// visible. Upstream b3046d29 only requests a summary when the caller
+		// sent reasoning_effort; explicit efforts (incl. "none") still follow
+		// thinking.ExtractSummaryConfig.
+		_ = outDoc.Set("reasoning.summary", "auto")
 	}
 	if serviceTier := normalizeCodexServiceTier(root.Get("service_tier")); serviceTier != "" {
 		_ = outDoc.Set("service_tier", serviceTier)
