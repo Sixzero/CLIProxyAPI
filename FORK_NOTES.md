@@ -179,6 +179,33 @@ client sends (`OpenRouterCLIProxyAPI.jl`, `ANTHROPIC_THINKING_HEADERS`) is a
 unconfirmed caller's own betas are dropped. It only appeared to work in
 early 2026-08 because the beta list looked different then.
 
+### Codex reasoning summaries (config, not a patch) — 2026-09-30
+
+Upstream `b3046d29` removed the unconditional `reasoning.summary="auto"`
+from the chat-completions→Codex translator; `thinking/summary.go` now only
+requests a summary when the Chat request carries a `reasoning_effort`.
+Without it the translator still sets `reasoning.effort=medium` (tokens
+billed) but `reasoning_content` comes back `null`. Fixed in the same
+`payload.default` list:
+
+```yaml
+    - models:
+        - name: "gpt-*"
+          protocol: "codex"
+          not-match:
+            - "reasoning.effort": "none"
+        - name: "codex-*"
+          protocol: "codex"
+          not-match:
+            - "reasoning.effort": "none"
+      params:
+        "reasoning.summary": "auto"
+```
+
+Verified with `gpt-5.5`: no effort, explicit effort, and streaming all
+return `reasoning_content`. (`reasoning_effort:"none"` still returned a summary for gpt-5.5 —
+its levels are low..xhigh, so the proxy presumably clamps it; unverified.)
+
 ### Model catalog: remote fetch is ON again (2026-09-02)
 
 `--local-model` was dropped from both `ExecStart`s (server 2026-09-02; the
