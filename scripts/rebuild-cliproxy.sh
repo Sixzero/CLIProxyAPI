@@ -59,8 +59,11 @@ if $do_remote; then
   CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -trimpath -ldflags="-s -w" \
     -o "/tmp/$BIN_NAME.remote" ./cmd/server
   scp -q "/tmp/$BIN_NAME.remote" "$REMOTE_HOST:$REMOTE_DIR/$BIN_NAME.new"
+  # Stamp computed here: a `$(date)` inside the single-quoted remote path was
+  # never expanded, so every backup was literally named `.bak.$(date ...)`.
+  stamp="$(date +%Y%m%d-%H%M%S)"
   ssh "$REMOTE_HOST" "cd '$REMOTE_DIR' \
-    && cp -f '$BIN_NAME' '$BIN_NAME.bak.\$(date +%Y%m%d-%H%M%S)' \
+    && cp -f '$BIN_NAME' '$BIN_NAME.bak.$stamp' \
     && systemctl stop '$SERVICE' && sleep 1 \
     && mv -f '$BIN_NAME.new' '$BIN_NAME' && chmod +x '$BIN_NAME' \
     && systemctl start '$SERVICE' && sleep 3 \
