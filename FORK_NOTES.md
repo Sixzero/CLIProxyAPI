@@ -129,6 +129,19 @@ Sonnet 5.5 rejects `thinking.type: disabled`; its lowest setting is
 `(none)`/`(0)` now send that for listed ids. Opus 5.5 accepts neither, so it
 still 400s on `(none)`. Test: `apply_between_tools_test.go`.
 
+### 8. Codex reasoning summary without `reasoning_effort` (2026-09-30)
+
+**File:** `internal/translator/codex/openai/chat-completions/codex_openai_request.go`
+
+Upstream `b3046d29` dropped the unconditional `reasoning.summary="auto"`;
+`thinking/summary.go` only asks for a summary when the Chat request has a
+`reasoning_effort`. Without one the translator still sets `effort=medium`
+(billed thinking) but `reasoning_content` came back `null`. The fork sets
+`reasoning.summary="auto"` in that implicit-medium branch only; explicit
+efforts keep upstream semantics. Test:
+`TestReasoningSummaryDefaultsOnlyWithoutEffort`. Supersedes a short-lived
+`payload.default` config rule (removed from local config).
+
 ### 4. (external) Julia client fix
 
 Not in this repo, but required for the passthrough to do anything:
@@ -178,33 +191,6 @@ client sends (`OpenRouterCLIProxyAPI.jl`, `ANTHROPIC_THINKING_HEADERS`) is a
 **no-op** for cloaked requests: the beta list is rebuilt server-side and an
 unconfirmed caller's own betas are dropped. It only appeared to work in
 early 2026-08 because the beta list looked different then.
-
-### Codex reasoning summaries (config, not a patch) — 2026-09-30
-
-Upstream `b3046d29` removed the unconditional `reasoning.summary="auto"`
-from the chat-completions→Codex translator; `thinking/summary.go` now only
-requests a summary when the Chat request carries a `reasoning_effort`.
-Without it the translator still sets `reasoning.effort=medium` (tokens
-billed) but `reasoning_content` comes back `null`. Fixed in the same
-`payload.default` list:
-
-```yaml
-    - models:
-        - name: "gpt-*"
-          protocol: "codex"
-          not-match:
-            - "reasoning.effort": "none"
-        - name: "codex-*"
-          protocol: "codex"
-          not-match:
-            - "reasoning.effort": "none"
-      params:
-        "reasoning.summary": "auto"
-```
-
-Verified with `gpt-5.5`: no effort, explicit effort, and streaming all
-return `reasoning_content`. (`reasoning_effort:"none"` still returned a summary for gpt-5.5 —
-its levels are low..xhigh, so the proxy presumably clamps it; unverified.)
 
 ### Model catalog: remote fetch is ON again (2026-09-02)
 

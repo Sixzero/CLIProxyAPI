@@ -62,6 +62,11 @@ func ConvertOpenAIRequestToCodex(modelName string, inputRawJSON []byte, stream b
 		out, _ = sjson.SetBytes(out, "reasoning.effort", v.Value())
 	} else {
 		out, _ = sjson.SetBytes(out, "reasoning.effort", "medium")
+		// FORK: the implicit medium effort is billed thinking, so make it
+		// visible. Upstream b3046d29 only requests a summary when the caller
+		// sent reasoning_effort; explicit efforts (incl. "none") still follow
+		// thinking.ExtractSummaryConfig.
+		out, _ = sjson.SetBytes(out, "reasoning.summary", "auto")
 	}
 	out, _ = sjson.SetBytes(out, "parallel_tool_calls", true)
 	// OpenAI documents reasoning summaries as explicit opt-in output. Leave

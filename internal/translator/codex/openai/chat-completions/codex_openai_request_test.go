@@ -1404,3 +1404,19 @@ func TestToolsDefinitionTranslated(t *testing.T) {
 		t.Errorf("tool 'search' not found in output tools: %s", gjson.Get(result, "tools").Raw)
 	}
 }
+
+// FORK: implicit medium effort must come with a visible summary; an explicit
+// effort leaves summary to thinking.ExtractSummaryConfig (upstream behavior).
+func TestReasoningSummaryDefaultsOnlyWithoutEffort(t *testing.T) {
+	out := ConvertOpenAIRequestToCodex("gpt-5.5", []byte(`{"model":"gpt-5.5","messages":[{"role":"user","content":"hi"}]}`), false)
+	if got := gjson.GetBytes(out, "reasoning.effort").String(); got != "medium" {
+		t.Fatalf("reasoning.effort = %q, want medium", got)
+	}
+	if got := gjson.GetBytes(out, "reasoning.summary").String(); got != "auto" {
+		t.Fatalf("reasoning.summary = %q, want auto; body=%s", got, out)
+	}
+	out = ConvertOpenAIRequestToCodex("gpt-5.5", []byte(`{"model":"gpt-5.5","reasoning_effort":"none","messages":[{"role":"user","content":"hi"}]}`), false)
+	if r := gjson.GetBytes(out, "reasoning.summary"); r.Exists() {
+		t.Fatalf("reasoning.summary = %s, want absent for explicit effort; body=%s", r.Raw, out)
+	}
+}
