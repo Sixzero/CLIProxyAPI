@@ -261,6 +261,16 @@ bump if version-gated (next section) + restart, then one real request.
   The refresh token is location-independent: the same file works copied to
   other hosts (local + server), no per-host re-login needed.
 
+### Grok CLI client version gate (2026-10-07)
+
+- **Symptom:** every Grok chat via OAuth → `426: Your Grok CLI version
+  (0.2.120) is outdated ... 1.0.13 or later`. `/v1/models` is not gated, so
+  the model list looks healthy while inference is dead.
+- **Fix:** cherry-picked upstream `b467a83c` (pins `xaiClientVersionValue`
+  = `1.0.44` in `xai_executor.go`); its test import adjusted `v8` → `v7`
+  (our module path). Not a fork patch — drops out on the next upstream rebase.
+- Next time it 426s: bump `xaiClientVersionValue`, rebuild `--all`.
+
 ### grok-4.5 region lock → per-account US proxy
 
 - **Symptom:** `grok-4.5` lists but calls return xAI's
