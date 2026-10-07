@@ -1741,6 +1741,8 @@ func TestApplyPatchChatHistoryBoundary(t *testing.T) {
 				t.Fatalf("history boundary: %s", out)
 			}
 		})
+	}
+}
 
 // FORK: implicit medium effort must come with a visible summary; an explicit
 // effort leaves summary to thinking.ExtractSummaryConfig (upstream behavior).
