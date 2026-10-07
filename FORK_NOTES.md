@@ -3,6 +3,20 @@
 Local patches on top of `upstream/main` (router-for-me/CLIProxyAPI), plus
 runtime/deployment state worth remembering.
 
+## Retired patches (2026-10-07 rebase onto upstream a2976eb8, module v7 → v8)
+
+- **Enriched auth_unavailable errors** — upstream `newAuthUnavailableErrorWithCause`
+  now appends "last upstream error" and sets the retry-after itself.
+- **claude-fable 429 fan-out exemption** — upstream `a8f9814a`/`42d8e746` classify
+  Fable-only (`7d_oi`) rejections as model-scoped in `helps/claude_ratelimit.go`,
+  and `aafa4e95` keeps credential cooldowns from inheriting model deadlines. Our
+  guard broke upstream's new test, so it was dropped.
+- **Grok CLI client version** — upstream `b467a83c` (1.0.44); see "Grok CLI client
+  version gate" below.
+
+Known upstream test failure, not ours: `TestServiceCatalogStartupAndConfigReload`
+(Devin catalog) fails on plain upstream too.
+
 ## Retired patches (superseded by upstream — 2026-08-13 rebase onto d757063c)
 
 Goal is to keep this list shrinking: prefer upstream absorbing our behavior
@@ -28,17 +42,6 @@ over carrying patches.
   (our copy caused a duplicate-id validation failure).
 
 ## Active patches (committed on `main`, on top of upstream)
-
-### 1. Enriched auth_unavailable errors
-
-**Files:** `sdk/cliproxy/auth/selector.go`, `scheduler.go`,
-`conductor_selection.go`
-
-When every candidate auth is blocked by a non-quota cooldown, the
-`auth_unavailable` error carries the most recent recorded upstream
-`LastError` and earliest retry time (e.g. "no auth available; last
-upstream error: overloaded (status 502); retry in 1m30s") instead of a
-bare "no auth available".
 
 ### 2. MCP tool-name aliasing disabled by default
 
@@ -75,20 +78,6 @@ Note the cheaper-looking alternative does *not* work: sending a
 `X-App: cli`, a plausible versioned native UA, the
 `claude-code-20250219` beta, and a well-formed `metadata.user_id` —
 so a UA alone leaves `Confirmed=false` and the request still cloaked.
-
-### 3. claude-fable 429 no longer cools sibling Claude models
-
-`sdk/cliproxy/auth/conductor_cooldown.go` — Anthropic rejects
-`claude-fable-5` with the same unified 5h/7d "rejected" headers it uses
-for a genuine account-wide limit, but fable has a smaller subscription
-quota than the rest of the line-up. The credential-scoped fan-out
-therefore cooled every Claude model on the credential (opus included)
-for up to 7 days until a restart. `isCredentialFanoutExempt` skips the
-fan-out for `claude-fable-*`; the rejected model still cools through its
-own ModelState with the full header deadline. Regression test:
-`TestAuthManager_ClaudeFable429DoesNotCoolSiblingModels` (fails with the
-guard reverted). If another narrow-quota model appears, extend the
-prefix check.
 
 ### 5. Full session ID in session-affinity logs (2026-09-28)
 
@@ -266,9 +255,8 @@ bump if version-gated (next section) + restart, then one real request.
 - **Symptom:** every Grok chat via OAuth → `426: Your Grok CLI version
   (0.2.120) is outdated ... 1.0.13 or later`. `/v1/models` is not gated, so
   the model list looks healthy while inference is dead.
-- **Fix:** cherry-picked upstream `b467a83c` (pins `xaiClientVersionValue`
-  = `1.0.44` in `xai_executor.go`); its test import adjusted `v8` → `v7`
-  (our module path). Not a fork patch — drops out on the next upstream rebase.
+- **Fix:** upstream `b467a83c` (pins `xaiClientVersionValue` = `1.0.44` in
+  `xai_executor.go`), included since the 2026-10-07 rebase.
 - Next time it 426s: bump `xaiClientVersionValue`, rebuild `--all`.
 
 ### grok-4.5 region lock → per-account US proxy
