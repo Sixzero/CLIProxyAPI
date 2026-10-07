@@ -314,6 +314,7 @@ func TestApplyClaudeHeaders_OfficialAPIKeyClaudeCodeCLIProfileUsesOAuthBetas(t *
 }
 
 func TestClaudeExecutor_ClaudeCodeCLIFingerprintOnThirdPartyGateway(t *testing.T) {
+	enableClaudeMCPToolAliasForTest(t)
 	var seenBody []byte
 	var seenHeaders http.Header
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -574,6 +575,7 @@ func TestClaudeExecutor_OfficialAPIKeyClaudeCodeCLIFingerprintIncludesDiagnostic
 }
 
 func TestClaudeExecutor_ClaudeCodeCLIFingerprintStreamMatchesWirePolicy(t *testing.T) {
+	enableClaudeMCPToolAliasForTest(t)
 	var seenBody []byte
 	var seenHeaders http.Header
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -630,6 +632,7 @@ func TestClaudeExecutor_ClaudeCodeCLIFingerprintStreamMatchesWirePolicy(t *testi
 }
 
 func TestClaudeExecutor_ClaudeCodeCLIFingerprintCountTokensKeepsNativeShape(t *testing.T) {
+	enableClaudeMCPToolAliasForTest(t)
 	var seenBody []byte
 	var seenHeaders http.Header
 	transport := claudeFingerprintRoundTripperFunc(func(req *http.Request) (*http.Response, error) {

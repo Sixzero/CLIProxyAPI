@@ -14,6 +14,7 @@ import (
 )
 
 func TestClaudeOAuthToolAliasRestoresContinuationWithoutDeclarations(t *testing.T) {
+	enableClaudeMCPToolAliasForTest(t)
 	secret := "continuation-alias-caller"
 	createBody := []byte(`{"thread":{"type":"create"},"tools":[{"name":"Read","input_schema":{"type":"object"}}]}`)
 	executor := &ClaudeExecutor{}
