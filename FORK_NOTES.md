@@ -11,6 +11,7 @@ runtime/deployment state worth remembering.
   Fable-only (`7d_oi`) rejections as model-scoped in `helps/claude_ratelimit.go`,
   and `aafa4e95` keeps credential cooldowns from inheriting model deadlines. Our
   guard broke upstream's new test, so it was dropped.
+- **Claude built-in for claude-sonnet-5-5** — both catalogs list it now.
 - **Grok CLI client version** — upstream `b467a83c` (1.0.44); see "Grok CLI client
   version gate" below.
 
@@ -94,20 +95,6 @@ replacement for `request-log: true` (~1 GB/h, turned off again).
 ssh todoforai 'journalctl -u cliproxyapi --since "YYYY-MM-DD HH:00" --until "..." -o cat \
   | grep "auth=claude-<acct>" | grep -o "session=[^ ]*" | sort | uniq -c | sort -rn'
 ```
-
-### 6. Claude built-ins for models the catalog lags on (2026-09-28)
-
-**File:** `internal/registry/model_definitions.go` (`withClaudeBuiltins`)
-
-`claude-sonnet-5-5` shipped before `router-for-me/models` listed it; the
-remote refresh (every 3 h) replaces the embedded JSON, so editing
-`models/models.json` alone would be undone. The built-in only fills gaps —
-once the catalog has the id, delete it from `claudeBuiltinModelInfos`.
-
-Local gotcha found the same day: a stale SYSTEM unit
-`/etc/systemd/system/cli-proxy-api.service` (old binary) held :8317, so the
-user unit crash-looped on `address already in use` after rebuild. Killed the
-process; the unit is `disabled`, so it does not come back on reboot.
 
 ### 7. `(none)` → `between_tools` for Sonnet 5.5 (2026-09-28)
 
