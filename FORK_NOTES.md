@@ -380,3 +380,9 @@ Expected: opus-4.7 and sonnet-4.6 return `PEACH`; haiku may refuse.
    model's own tool names — see active patch 2.)
 2. **Tool count** — CC exposes ~14 tools, we expose ~90. Only PR #2845
    would fix this scalably.
+
+## 2026-10-08 rebase onto upstream 0f96f568 (26 commits)
+
+Clean rebase; one fork test adapted (`ConvertOpenAIRequestToCodex` now returns
+`([]byte, error)`). `go test ./...` green. Local rebuilt + restarted via
+`scripts/rebuild-cliproxy.sh`; remote not deployed.
