@@ -103,6 +103,7 @@ func renderToolSearchExecutorGolden(t *testing.T) map[string]string {
 // upstream.claude.tool-search off every request path must reproduce it, even
 // for credentials that would otherwise use native tool search.
 func TestClaudeExecutor_ToolSearchDisabledMatchesDevGolden(t *testing.T) {
+	enableClaudeMCPToolAliasForTest(t)
 	enableClaudeToolSearchForTest(t, false)
 	if NewClaudeExecutor(&config.Config{}).SupportsNativeToolSearch(nativeToolSearchAuth(nil), "claude-sonnet-4-5") {
 		t.Fatal("SupportsNativeToolSearch() = true with upstream.claude.tool-search off")
