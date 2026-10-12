@@ -400,3 +400,11 @@ Expected: opus-4.7 and sonnet-4.6 return `PEACH`; haiku may refuse.
 Clean rebase; one fork test adapted (`ConvertOpenAIRequestToCodex` now returns
 `([]byte, error)`). `go test ./...` green. Local rebuilt + restarted via
 `scripts/rebuild-cliproxy.sh`; remote not deployed.
+
+## 2026-10-12 rebase onto upstream v8.0.27 (bf934162, 69 commits)
+
+Clean rebase. Two new upstream tool_search tests assumed MCP aliasing and now
+opt in via `enableClaudeMCPToolAliasForTest(t)`. Re-added patch 6 for
+`claude-haiku-5-5`, which was dropped from the catalog. Upstream fix pending:
+models#84 and CLIProxyAPI#6564 (both still open). Drop patch 6 once either
+merges. `go test ./...` passes.
