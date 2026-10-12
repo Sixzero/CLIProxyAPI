@@ -281,6 +281,7 @@ func TestClaudeExecutor_NativeToolSearchOAuthAliasesReferences(t *testing.T) {
 // A discovered non-MCP tool is aliased on cloaked OAuth requests; its
 // tool_reference must carry the same alias as its deferred declaration.
 func TestClaudeExecutor_NativeToolSearchOAuthAliasesRenamedReferences(t *testing.T) {
+	enableClaudeMCPToolAliasForTest(t)
 	enableClaudeToolSearchForTest(t, true)
 	payload := []byte(`{"model":"claude-sonnet-4-5","input":[` +
 		`{"type":"message","role":"user","content":[{"type":"input_text","text":"look up order 7"}]},` +
