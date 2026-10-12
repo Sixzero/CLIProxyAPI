@@ -96,6 +96,20 @@ ssh todoforai 'journalctl -u cliproxyapi --since "YYYY-MM-DD HH:00" --until "...
   | grep "auth=claude-<acct>" | grep -o "session=[^ ]*" | sort | uniq -c | sort -rn'
 ```
 
+### 6. Claude built-ins for models the catalog lacks (re-added 2026-10-12)
+
+**File:** `internal/registry/model_definitions.go` (`withClaudeBuiltins`),
+test `claude_builtins_fork_test.go`
+
+`router-for-me/models` `e11df623` (2026-10-12 17:58Z) removed
+`claude-haiku-5-5` with no reason given, while Anthropic still serves it
+(650× 200 OK in the hour before). The 3 h remote refresh re-registered models
+at 22:19 CEST, then every haiku-5-5 call got `unknown provider for model`:
+the e2e uptime probe failed, and so did agent title generation. The
+remote catalog replaces the embedded JSON, so editing `models/models.json`
+would be undone. The built-in only fills gaps. Once the catalog has the id
+again, delete it from `claudeBuiltinModelInfos`.
+
 ### 7. `(none)` → `between_tools` for Sonnet 5.5 (2026-09-28)
 
 **File:** `internal/thinking/provider/claude/apply.go` (`claudeBetweenToolsModels`)

@@ -41,7 +41,47 @@ type staticModelsJSON struct {
 
 // GetClaudeModels returns the standard Claude model definitions.
 func GetClaudeModels() []*ModelInfo {
-	return cloneModelInfos(getModels().Claude)
+	return withClaudeBuiltins(cloneModelInfos(getModels().Claude))
+}
+
+// withClaudeBuiltins (fork) adds Claude models the upstream catalog (embedded +
+// remote router-for-me/models) lacks. It only fills gaps: once the catalog has
+// the id, the catalog's metadata wins and the built-in becomes dead code.
+func withClaudeBuiltins(models []*ModelInfo) []*ModelInfo {
+	for _, b := range claudeBuiltinModelInfos() {
+		found := false
+		for _, m := range models {
+			if m != nil && strings.EqualFold(strings.TrimSpace(m.ID), b.ID) {
+				found = true
+				break
+			}
+		}
+		if !found {
+			models = append(models, b)
+		}
+	}
+	return models
+}
+
+func claudeBuiltinModelInfos() []*ModelInfo {
+	webSearch := true
+	return []*ModelInfo{{
+		// router-for-me/models e11df623 (2026-10-12) dropped it with no reason given,
+		// while Anthropic still serves it; copied from e63af985 which added it.
+		ID:                        "claude-haiku-5-5",
+		Object:                    "model",
+		Created:                   1790553600,
+		OwnedBy:                   "anthropic",
+		Type:                      "claude",
+		DisplayName:               "Claude Haiku 5.5",
+		Description:               "For high-volume, latency-sensitive tasks such as classification, extraction, and routing.",
+		ContextLength:             1000000,
+		MaxCompletionTokens:       128000,
+		Thinking:                  &ThinkingSupport{ZeroAllowed: true, DynamicAllowed: true, Levels: []string{"low", "medium", "high", "xhigh", "max"}},
+		SupportedInputModalities:  []string{"text", "image"},
+		SupportedOutputModalities: []string{"text"},
+		NativeCapabilities:        &NativeCapabilities{WebSearch: &webSearch},
+	}}
 }
 
 // GetGeminiModels returns the standard Gemini model definitions.
@@ -567,7 +607,7 @@ func LookupStaticModelInfo(modelID string) *ModelInfo {
 
 	data := getModels()
 	allModels := [][]*ModelInfo{
-		data.Claude,
+		withClaudeBuiltins(cloneModelInfos(data.Claude)),
 		data.Gemini,
 		data.Vertex,
 		data.AIStudio,
