@@ -3,6 +3,15 @@
 Local patches on top of `upstream/main` (router-for-me/CLIProxyAPI), plus
 runtime/deployment state worth remembering.
 
+## Retired patches (2026-10-26 rebase onto upstream v8.0.44, 1f917e77)
+
+- **6. Claude built-in for claude-haiku-5-5** — router-for-me/models lists it again.
+- **7. `(none)` → `between_tools` for Sonnet 5.5** — upstream reads
+  `thinking.disable_type` from the catalog (`ThinkingSupport.DisableType`,
+  `disableThinking()` in `thinking/provider/claude/apply.go`); the catalog sets
+  `between_tools` for claude-sonnet-5-5. Future models needing it get it from
+  the catalog, no code change.
+
 ## Retired patches (2026-10-07 rebase onto upstream a2976eb8, module v7 → v8)
 
 - **Enriched auth_unavailable errors** — upstream `newAuthUnavailableErrorWithCause`
@@ -386,3 +395,13 @@ opt in via `enableClaudeMCPToolAliasForTest(t)`. Re-added patch 6 for
 `claude-haiku-5-5`, which was dropped from the catalog. Upstream fix pending:
 models#84 and CLIProxyAPI#6564 (both still open). Drop patch 6 once either
 merges. `go test ./...` passes.
+
+## 2026-10-26 rebase onto upstream v8.0.44 (1f917e77, 245 commits)
+
+Conflicts: patch 2 (next to new upstream `callerScopeFromMetadataSets`, kept
+both), patch 8 test (moved to file end). Patches 6 and 7 retired (see top).
+`claude_mcp_alias_fork_test.go` import fixed v7 → v8 (was a stale path since the
+module bump). New upstream test
+`TestClaudeExecutor_CallerScopeMetadataReproducesOAuthMCPToolAliases` opts into
+aliasing. Pre-rebase head kept as branch `backup/pre-rebase-2026-10-26`.
+gpt-6.1-terra: NOT in router-for-me/models yet (proxy says `unknown provider`).

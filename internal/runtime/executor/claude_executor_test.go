@@ -8206,6 +8206,7 @@ func TestResolveClaudeMCPAliasOptions(t *testing.T) {
 }
 
 func TestClaudeExecutor_CallerScopeMetadataReproducesOAuthMCPToolAliases(t *testing.T) {
+	enableClaudeMCPToolAliasForTest(t)
 	var seenBodies [][]byte
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		body, _ := io.ReadAll(r.Body)
