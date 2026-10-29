@@ -405,3 +405,17 @@ module bump). New upstream test
 `TestClaudeExecutor_CallerScopeMetadataReproducesOAuthMCPToolAliases` opts into
 aliasing. Pre-rebase head kept as branch `backup/pre-rebase-2026-10-26`.
 gpt-6.1-terra: NOT in router-for-me/models yet (proxy says `unknown provider`).
+
+
+## Hosted image generation is opt-in (2026-10-29)
+
+Config loaders default `disable-image-generation` to `passthrough`: ordinary
+Codex requests no longer get an unsolicited hosted `image_generation` tool.
+Client-supplied tools and `/v1/images/*` remain available. Set the value explicitly
+to `false` to restore automatic injection. Example config uses the same default.
+Local and production runtime configs explicitly use `passthrough`, so existing
+binaries also stop injecting without depending on the new loader default.
+
+Config watcher caveat: replacing `config.yaml` by atomic rename can detach its
+file watch; a proxy-only restart was required to apply this change. Avoid claiming
+hot reload succeeded without observing it. No backend or agent restart needed.
