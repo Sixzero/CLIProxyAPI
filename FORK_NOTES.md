@@ -185,7 +185,7 @@ fork commit adding the model to the embedded JSON + rebuild, not the flag.
 ### Claude Code version we impersonate (config, not a patch)
 
 Full new-model checklist (UA bump → export → packages aliases → deploy):
-`~/repo/OpenRouter.jl/AGENTS.md` „Új modell checklist”.
+`~/repo/OpenRouter.jl/docs/new_model_checklist.md`.
 
 Anthropic gates new models on the *client version* in the cloaked headers:
 `claude-fable-5-1` answered `Claude Code 2.1.220 does not support this
