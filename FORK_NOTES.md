@@ -192,11 +192,12 @@ User-Agent baseline in `claude_device_profile.go`, overridable per host in
 
 ```yaml
 claude-header-defaults:
-  user-agent: "claude-cli/2.1.280 (external, cli)"
+  user-agent: "claude-cli/2.1.290 (external, cli)"
 ```
 
 History: 2.1.251 for `claude-fable-5-1` (2026-09-02), 2.1.280 for
-`claude-opus-5-5` (2026-09-23). Applied on local and `ssh todoforai`; a new
+`claude-opus-5-5` (2026-09-23), 2.1.290 for `claude-fable-5-2`
+(2026-11-09; remote catalog already listed it, only the UA gate blocked). Applied on local and `ssh todoforai`; a new
 host needs it too. Bump the number the next time a model rejects with the
 same message — upstream's `defaultClaudeFingerprintUserAgent` in
 `claude_device_profile.go` is the hint for a known-good value.
