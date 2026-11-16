@@ -119,6 +119,21 @@ efforts keep upstream semantics. Test:
 `TestReasoningSummaryDefaultsOnlyWithoutEffort`. Supersedes a short-lived
 `payload.default` config rule (removed from local config).
 
+### 9. No cloak-injected Opus 5.5 -> 4.8 server-side fallback (2026-11-16)
+
+**Files:** `internal/runtime/executor/claude_executor_cloaking.go`
+(`claudeOpus55FallbackEnabled`), `claude_opus55_fallback_fork_test.go`, plus one
+opt-in line in three upstream tests in `claude_executor_test.go`.
+
+Upstream's cloak adds `"fallbacks":[{"model":"claude-opus-4-8"}]` to every
+non-native Opus 5.5 request (plus the `server-side-fallback`/`fallback-credit`
+betas, which follow the body). Anthropic then serves Opus 4.8 with a normal
+stop_reason: the todoforai agent sees no refusal, so its own
+`refusalFallbackModel`/`refusalRetryEvery` never fires. TB 2.1 showed it as
+`provenance.servedModel=claude-opus-4-8` on whole tasks (e.g. protein-assembly
+71/71 calls). Off by default; caller-supplied `fallbacks` still pass through;
+`CPA_CLAUDE_OPUS55_FALLBACK=1` restores upstream. Fable 5.1 -> Opus 5 untouched.
+
 ### 4. (external) Julia client fix
 
 Not in this repo, but required for the passthrough to do anything:

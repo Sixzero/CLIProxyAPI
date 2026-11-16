@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"os"
 	"strconv"
 	"strings"
 	"sync"
@@ -1753,6 +1754,20 @@ func hasFableReportingBlockFromSystem(system ojson.Result) bool {
 	return false
 }
 
+// FORK: the cloak no longer adds Opus 5.5's native server-side fallback
+// (`fallbacks:[{"model":"claude-opus-4-8"}]`). With it Anthropic silently
+// serves Opus 4.8 with a normal stop_reason, so the caller never sees the
+// refusal and cannot run its own fallback/retry policy. Caller-supplied
+// fallbacks still pass through. CPA_CLAUDE_OPUS55_FALLBACK=1 restores upstream.
+func claudeOpus55FallbackEnabled() bool {
+	switch strings.ToLower(strings.TrimSpace(os.Getenv("CPA_CLAUDE_OPUS55_FALLBACK"))) {
+	case "1", "true", "yes", "on":
+		return true
+	default:
+		return false
+	}
+}
+
 func captureClaudeCodeFableState(before, after []byte, cloaked bool) claudeCodeFableState {
 	if !cloaked || len(before) == 0 || len(after) == 0 {
 		return claudeCodeFableState{}
@@ -1842,7 +1857,7 @@ func reconcileClaudeCodeFableModelAfterPayloadDoc(
 		switch {
 		case isClaudeFable51Model(currentModel):
 			wantFallback = "claude-opus-5"
-		case isClaudeOpus55Model(currentModel):
+		case isClaudeOpus55Model(currentModel) && claudeOpus55FallbackEnabled():
 			wantFallback = "claude-opus-4-8"
 		}
 		if doc.Get("fallbacks.0.model").String() != wantFallback {
@@ -1908,7 +1923,7 @@ func reconcileClaudeCodeFableModelAfterPayloadDoc(
 		return changed
 	}
 
-	if isClaudeOpus55Model(currentModel) && !doc.Get("fallbacks").Exists() && !payloadTouchedFallbacks {
+	if isClaudeOpus55Model(currentModel) && claudeOpus55FallbackEnabled() && !doc.Get("fallbacks").Exists() && !payloadTouchedFallbacks {
 		_ = doc.SetRawBytes("fallbacks", []byte(`[{"model":"claude-opus-4-8"}]`))
 		changed = true
 	}

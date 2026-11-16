@@ -6225,6 +6225,7 @@ func TestHomeV8ClaudeCloakCredentialOptions(t *testing.T) {
 }
 
 func TestApplyCloaking_Opus55FallbackOnlyForUnconfirmedClients(t *testing.T) {
+	enableClaudeOpus55FallbackForTest(t)
 	cfg := &config.Config{
 		Claude: config.ClaudeConfig{ServerSideFallback: true},
 		ClaudeKey: []config.ClaudeKey{{
@@ -6270,6 +6271,7 @@ func TestApplyCloaking_Opus55FallbackOnlyForUnconfirmedClients(t *testing.T) {
 }
 
 func TestClaudeExecutor_CloakedOpus55PairsFallbackAndBetas(t *testing.T) {
+	enableClaudeOpus55FallbackForTest(t)
 	var seenBody []byte
 	var seenHeaders http.Header
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -6314,6 +6316,7 @@ func TestClaudeExecutor_CloakedOpus55PairsFallbackAndBetas(t *testing.T) {
 }
 
 func TestClaudeOpus55FallbackReconcilesAfterModelOverride(t *testing.T) {
+	enableClaudeOpus55FallbackForTest(t)
 	before := []byte(`{"model":"claude-opus-5-5","system":[{"type":"text","text":"billing"}]}`)
 	cloaked := []byte(`{"model":"claude-opus-5-5","fallbacks":[{"model":"claude-opus-4-8"}],"system":[{"type":"text","text":"billing"}]}`)
 	state := captureClaudeCodeFableState(before, cloaked, true)
