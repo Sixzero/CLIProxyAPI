@@ -207,6 +207,32 @@ func loadModelsFromBytes(data []byte, source string) error {
 	return nil
 }
 
+// keepEmbeddedOnlyModels appends, per section, the embedded models the remote
+// catalog lacks (fork): a model the fork adds before upstream publishes it must
+// survive the remote refresh, which otherwise replaces the catalog wholesale.
+func keepEmbeddedOnlyModels(remote *staticModelsJSON) {
+	var embedded staticModelsJSON
+	if err := json.Unmarshal(embeddedModelsJSON, &embedded); err != nil {
+		return
+	}
+	rv, ev := reflect.ValueOf(remote).Elem(), reflect.ValueOf(&embedded).Elem()
+	for i := 0; i < rv.NumField(); i++ {
+		list := rv.Field(i).Interface().([]*ModelInfo)
+		have := make(map[string]bool, len(list))
+		for _, m := range list {
+			if m != nil {
+				have[m.ID] = true
+			}
+		}
+		for _, m := range ev.Field(i).Interface().([]*ModelInfo) {
+			if m != nil && !have[m.ID] {
+				list = append(list, m)
+			}
+		}
+		rv.Field(i).Set(reflect.ValueOf(list))
+	}
+}
+
 func getModels() *staticModelsJSON {
 	modelsCatalogStore.mu.RLock()
 	defer modelsCatalogStore.mu.RUnlock()

@@ -197,6 +197,15 @@ us add the flag in 2026-08. Without the flag the catalog refreshes from
 remote on startup and every 3 h. If remote lags again, the alternative is a
 fork commit adding the model to the embedded JSON + rebuild, not the flag.
 
+**Embedded-only models survive the remote refresh (fork patch, 2026-11-17).**
+`publishCatalogBytes` used to replace the catalog wholesale, so a model only in
+the embedded JSON vanished at startup (`unknown provider`). Now
+`keepEmbeddedOnlyModels` (`model_updater.go`) appends, per section, the embedded
+models the remote lacks. First use: gpt-6.2-sol / gpt-6.2-astra (Codex catalog at
+client 0.169.0 lists them; client 0.159.0 hid them — bump `fetch_codex_models`
+`defaultClientVersion` when a new model is missing from the fetch). No `-pro`
+siblings natively.
+
 ### Claude Code version we impersonate (config, not a patch)
 
 Full new-model checklist (UA bump → export → packages aliases → deploy):
