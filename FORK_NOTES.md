@@ -457,3 +457,14 @@ binaries also stop injecting without depending on the new loader default.
 Config watcher caveat: replacing `config.yaml` by atomic rename can detach its
 file watch; a proxy-only restart was required to apply this change. Avoid claiming
 hot reload succeeded without observing it. No backend or agent restart needed.
+
+
+## Gemini 4 Neon defaults to thinkingLevel=high (2026-11-19, config only)
+
+The registry only has `gemini-4-neon-xhigh`; a bare request ran at xhigh, used all
+65536 reasoning tokens and returned empty content (`finish_reason: length`).
+Runtime configs (local and prod) add a `payload.default` rule for `gemini-4-neon*`
+on protocol `antigravity` that sets `generationConfig.thinkingConfig.thinkingLevel: high`.
+`not-exist` on thinkingLevel/thinkingBudget is required: `default` checks the
+pre-thinking source payload, so without it the rule also overwrites an explicit
+`(low)`/`(xhigh)` suffix. Pinned by `antigravity_neon_default_level_fork_test.go`.
