@@ -3,6 +3,16 @@
 Local patches on top of `upstream/main` (router-for-me/CLIProxyAPI), plus
 runtime/deployment state worth remembering.
 
+## Retired patches (2026-11-19 rebase onto upstream v8.0.78, db7f177d)
+
+- **Codex client catalog gpt-6.2 gap-fill** (`fetchCodexClientCatalog`) — the
+  embedded and remote `codex_client_models.json` both list gpt-6.2-sol/-astra.
+- Embedded gpt-6.2 entries in `models.json` / `codex_client_models.json` —
+  upstream ships them.
+- Ported to upstream's ojson `Doc` API: Opus 5.5 fallback gate (also respects
+  upstream's opt-in `claude.server-side-fallback`), MCP alias gate now also on
+  `prepareClaudeOAuthToolNamesForUpstreamDoc`, codex `reasoning.summary=auto`.
+
 ## Retired patches (2026-10-26 rebase onto upstream v8.0.44, 1f917e77)
 
 - **6. Claude built-in for claude-haiku-5-5** — router-for-me/models lists it again.
