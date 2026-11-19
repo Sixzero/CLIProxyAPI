@@ -39,6 +39,7 @@ var claudeIssue7389ClaudePayload = `{"model":"claude-opus-5-5","max_tokens":256,
 	`{"name":"get_project","description":"Get a project.","input_schema":` + claudeIssue7389ProjectSchema + `}]}`
 
 func TestClaudeIssue7389RejectedPropertyNamesDoNotBreakRequests(t *testing.T) {
+	enableClaudeMCPToolAliasForTest(t)
 	sources := []struct {
 		name    string
 		format  sdktranslator.Format

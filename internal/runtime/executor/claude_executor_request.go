@@ -1926,6 +1926,9 @@ func prepareClaudeOAuthToolNamesForUpstream(body []byte, mcpAliases claudeMCPAli
 }
 
 func prepareClaudeOAuthToolNamesForUpstreamDoc(doc *ojson.Doc, mcpAliases claudeMCPAliasOptions) (map[string]string, bool) {
+	if !claudeMCPToolAliasEnabled() {
+		return nil, false
+	}
 	return remapOAuthToolNamesWithOptionsDoc(doc, mcpAliases)
 }
 

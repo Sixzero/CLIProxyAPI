@@ -10,11 +10,11 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/MoeForge/moego/ojson"
 	"github.com/router-for-me/CLIProxyAPI/v8/internal/config"
 	cliproxyauth "github.com/router-for-me/CLIProxyAPI/v8/sdk/cliproxy/auth"
 	cliproxyexecutor "github.com/router-for-me/CLIProxyAPI/v8/sdk/cliproxy/executor"
 	sdktranslator "github.com/router-for-me/CLIProxyAPI/v8/sdk/translator"
-	"github.com/tidwall/gjson"
 )
 
 // FORK: MCP tool-name aliasing is off by default here (see
@@ -48,7 +48,7 @@ func TestPrepareClaudeOAuthToolNamesForUpstream_DisabledByDefaultKeepsToolNames(
 		"tools.1.name":              "read",
 		"messages.0.content.0.name": "bash",
 	} {
-		if got := gjson.GetBytes(out, path).String(); got != want {
+		if got := ojson.GetBytes(out, path).String(); got != want {
 			t.Fatalf("%s = %q, want %q", path, got, want)
 		}
 	}
@@ -62,8 +62,8 @@ func TestClaudeExecutor_ExecuteCloakedOAuthKeepsToolNamesByDefault(t *testing.T)
 	var upstreamSystem string
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		body, _ := io.ReadAll(r.Body)
-		upstreamName = gjson.GetBytes(body, "tools.0.name").String()
-		upstreamSystem = gjson.GetBytes(body, "system").String()
+		upstreamName = ojson.GetBytes(body, "tools.0.name").String()
+		upstreamSystem = ojson.GetBytes(body, "system").String()
 		w.Header().Set("Content-Type", "application/json")
 		_, _ = fmt.Fprintf(w, `{"id":"msg_1","type":"message","role":"assistant","model":"claude-opus-4-6","content":[{"type":"tool_use","id":"toolu_1","name":%q,"input":{"query":"go"}}],"stop_reason":"tool_use","usage":{"input_tokens":1,"output_tokens":1}}`, upstreamName)
 	}))
@@ -88,7 +88,7 @@ func TestClaudeExecutor_ExecuteCloakedOAuthKeepsToolNamesByDefault(t *testing.T)
 	if upstreamName != "search_web" {
 		t.Fatalf("upstream tool name = %q, want search_web", upstreamName)
 	}
-	if got := gjson.GetBytes(resp.Payload, "content.0.name").String(); got != "search_web" {
+	if got := ojson.GetBytes(resp.Payload, "content.0.name").String(); got != "search_web" {
 		t.Fatalf("client tool name = %q, want search_web; payload=%s", got, resp.Payload)
 	}
 	// Only the alias pass is disabled: the rest of cloaking must still run, or
@@ -103,7 +103,7 @@ func TestClaudeExecutor_ExecuteStreamCloakedOAuthKeepsToolNamesByDefault(t *test
 	var upstreamName string
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		body, _ := io.ReadAll(r.Body)
-		upstreamName = gjson.GetBytes(body, "tools.0.name").String()
+		upstreamName = ojson.GetBytes(body, "tools.0.name").String()
 		w.Header().Set("Content-Type", "text/event-stream")
 		_, _ = fmt.Fprintf(w, "event: content_block_start\ndata: {\"type\":\"content_block_start\",\"index\":0,\"content_block\":{\"type\":\"tool_use\",\"id\":\"toolu_1\",\"name\":%q,\"input\":{}}}\n\nevent: message_stop\ndata: {\"type\":\"message_stop\"}\n\n", upstreamName)
 	}))
@@ -166,7 +166,7 @@ func TestClaudeExecutor_CountTokensCloakedOAuthKeepsToolNamesByDefault(t *testin
 	}, cliproxyexecutor.Options{SourceFormat: sdktranslator.FormatClaude}); errCount != nil {
 		t.Fatalf("countTokensUpstream() error = %v", errCount)
 	}
-	if got := gjson.GetBytes(upstreamBody, "tools.0.name").String(); got != "search_web" {
+	if got := ojson.GetBytes(upstreamBody, "tools.0.name").String(); got != "search_web" {
 		t.Fatalf("count_tokens tool name = %q, want search_web", got)
 	}
 }
