@@ -420,6 +420,25 @@ Expected: opus-4.7 and sonnet-4.6 return `PEACH`; haiku may refuse.
 2. **Tool count** — CC exposes ~14 tools, we expose ~90. Only PR #2845
    would fix this scalably.
 
+## Antigravity Hub fingerprint (2026-11-23)
+
+We present as the **desktop Hub** (`language_server`), not the `agy` CLI. Keep
+the set consistent; mixing the two is worse than either:
+
+- Host: `daily-cloudcode-pa.googleapis.com` (mitm capture, upstream #6619).
+  `cloudcode-pa` (prod) belongs to `agy`; don't switch it alone.
+- UA: `antigravity/hub/<ver> (aidev_client; os_type=<GOOS>; arch=<GOARCH>; cl=<cl>)`.
+  Fork patch: real `runtime.GOOS/GOARCH`, as the Go `language_server` stamps it
+  (Windows capture in upstream #7827: `os_type=windows; arch=amd64`). The
+  server is Linux, and the Hub ships for Linux, so `os_type=linux; arch=amd64`.
+- `cl`: version→changelist map, cherry-picked from upstream (`0de10ea24`,
+  `547d1cba6`). Verified 2.34.0 = `changelist 1026637980` from the official
+  linux-x64 .deb's `language_server`. On a new Hub version: pull upstream's map
+  (unmapped versions pin to the highest mapped pair).
+- System prompt opens with the Antigravity identity line (`fb0d243a6`).
+- Not mimicked: telemetry (`recordCodeAssistMetrics`, `recordClientEvent`…) and
+  the 24/7 machine-paced traffic, the likelier ban trigger.
+
 ## 2026-10-08 rebase onto upstream 0f96f568 (26 commits)
 
 Clean rebase; one fork test adapted (`ConvertOpenAIRequestToCodex` now returns
