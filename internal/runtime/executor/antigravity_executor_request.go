@@ -18,6 +18,7 @@ import (
 	"github.com/router-for-me/CLIProxyAPI/v8/internal/misc"
 	"github.com/router-for-me/CLIProxyAPI/v8/internal/registry"
 	"github.com/router-for-me/CLIProxyAPI/v8/internal/runtime/executor/helps"
+	translatorcommon "github.com/router-for-me/CLIProxyAPI/v8/internal/translator/common"
 	"github.com/router-for-me/CLIProxyAPI/v8/internal/util"
 	cliproxyauth "github.com/router-for-me/CLIProxyAPI/v8/sdk/cliproxy/auth"
 	log "github.com/sirupsen/logrus"
@@ -66,6 +67,7 @@ func (e *AntigravityExecutor) buildRequestDoc(ctx context.Context, auth *cliprox
 	}
 	geminiToAntigravityDoc(doc, modelName, projectID, derivedSessionIDs...)
 	promptStructuredOutput := helps.PrepareAntigravityClaudeStructuredOutputDoc(modelName, doc)
+	applyAntigravityIdentityDoc(doc)
 
 	// Cap maxOutputTokens to model's max_completion_tokens from registry
 	if maxOut := doc.Get("request.generationConfig.maxOutputTokens"); maxOut.Exists() && maxOut.Type == ojson.Number {
@@ -764,6 +766,32 @@ func geminiToAntigravityDoc(doc *ojson.Doc, modelName string, projectID string, 
 		_ = doc.SetRawBytes("request.toolConfig", []byte(toolConfig.Raw))
 		_ = doc.Delete("toolConfig")
 	}
+}
+
+// antigravityIdentity is the first system line of the native Antigravity
+// client, mirroring claudeCodeCLIIdentity on the Claude path.
+const antigravityIdentity = "You are Antigravity, a powerful agentic AI coding assistant designed by the Google Deepmind team working on Advanced Agentic Coding."
+
+// applyAntigravityIdentityDoc prepends antigravityIdentity as the first
+// systemInstruction part of agent requests (idempotent).
+func applyAntigravityIdentityDoc(doc *ojson.Doc) {
+	if doc == nil || doc.Get("requestType").String() != "agent" {
+		return
+	}
+	systemPath := "request.systemInstruction"
+	if !doc.Get(systemPath).Exists() && doc.Get("request.system_instruction").Exists() {
+		systemPath = "request.system_instruction"
+	}
+	parts := [][]byte{[]byte(`{"text":""}`)}
+	parts[0], _ = ojson.SetBytes(parts[0], "text", antigravityIdentity)
+	for _, part := range doc.Get(systemPath + ".parts").Array() {
+		if strings.HasPrefix(strings.TrimSpace(part.Get("text").String()), antigravityIdentity) {
+			return
+		}
+		parts = append(parts, []byte(part.Raw))
+	}
+	_ = doc.Set(systemPath+".role", "user")
+	_ = doc.SetRawBytes(systemPath+".parts", translatorcommon.JoinRawArray(parts))
 }
 
 func generateRequestID() string {

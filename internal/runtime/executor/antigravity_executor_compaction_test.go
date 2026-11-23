@@ -328,7 +328,7 @@ func TestAntigravityCompactionReplayNextTurn(t *testing.T) {
 		}
 	}
 	if !foundContext {
-		systemText := ojson.GetBytes(gotBody, "request.systemInstruction.parts.0.text").String()
+		systemText := ojson.GetBytes(gotBody, "request.systemInstruction.parts.1.text").String()
 		if strings.Contains(systemText, "Context summary from previous turns") {
 			foundContext = true
 		}

@@ -626,3 +626,25 @@ func assertSchemaSanitizedAndPropertyPreserved(t *testing.T, params map[string]a
 		t.Fatalf("deprecated should be removed from nested schema")
 	}
 }
+
+func TestApplyAntigravityIdentityDoc(t *testing.T) {
+	doc := ojson.NewDoc([]byte(`{"requestType":"agent","request":{"systemInstruction":{"role":"user","parts":[{"text":"caller"}]}}}`))
+	applyAntigravityIdentityDoc(doc)
+	applyAntigravityIdentityDoc(doc) // idempotent
+	parts := doc.Get("request.systemInstruction.parts").Array()
+	if len(parts) != 2 || parts[0].Get("text").String() != antigravityIdentity || parts[1].Get("text").String() != "caller" {
+		t.Fatalf("unexpected parts: %s", doc.Get("request.systemInstruction").Raw)
+	}
+
+	empty := ojson.NewDoc([]byte(`{"requestType":"agent","request":{}}`))
+	applyAntigravityIdentityDoc(empty)
+	if got := empty.Get("request.systemInstruction.parts.0.text").String(); got != antigravityIdentity {
+		t.Fatalf("identity not injected without caller system: %q", got)
+	}
+
+	search := ojson.NewDoc([]byte(`{"requestType":"web_search","request":{}}`))
+	applyAntigravityIdentityDoc(search)
+	if search.Get("request.systemInstruction").Exists() {
+		t.Fatal("identity must not be injected into web_search requests")
+	}
+}
