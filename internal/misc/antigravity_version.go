@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"runtime"
 	"strconv"
 	"strings"
 	"sync"
@@ -22,12 +23,17 @@ const (
 	// newer models for clients below 2.23.0, so this floor must stay at or above
 	// that version.
 	antigravityFallbackVersion = "2.34.0"
-	antigravityHubPlatform     = "os_type=darwin; arch=arm64"
 	antigravityVersionCacheTTL = 6 * time.Hour
 	antigravityFetchTimeout    = 10 * time.Second
 	AntigravityNodeAPIClientUA = "google-api-nodejs-client/10.3.0"
 	AntigravityGoogAPIClientUA = "gl-node/22.21.1"
 )
+
+// antigravityHubPlatform is the Hub's os_type/arch tuple. language_server is a
+// Go binary stamping runtime.GOOS/GOARCH verbatim (captured Windows Hub 2.34.0:
+// "os_type=windows; arch=amd64"), so report the host we really run on rather
+// than claiming a Mac from a Linux server.
+var antigravityHubPlatform = "os_type=" + runtime.GOOS + "; arch=" + runtime.GOARCH
 
 var (
 	antigravityHubLatestManifestURL = "https://antigravity-hub-auto-updater-974169037036.us-central1.run.app/manifest/latest-arm64-mac.yml"
