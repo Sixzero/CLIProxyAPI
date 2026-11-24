@@ -3,6 +3,7 @@ package misc
 
 import (
 	"context"
+	_ "embed"
 	"errors"
 	"fmt"
 	"io"
@@ -22,7 +23,7 @@ const (
 	// manifest has not been fetched yet or cannot be reached. Cloud Code rejects
 	// newer models for clients below 2.23.0, so this floor must stay at or above
 	// that version.
-	antigravityFallbackVersion = "2.34.0"
+	antigravityFallbackVersion = "1.5.15"
 	antigravityVersionCacheTTL = 6 * time.Hour
 	antigravityFetchTimeout    = 10 * time.Second
 	AntigravityNodeAPIClientUA = "google-api-nodejs-client/10.3.0"
@@ -35,8 +36,18 @@ const (
 // than claiming a Mac from a Linux server.
 var antigravityHubPlatform = "os_type=" + runtime.GOOS + "; arch=" + runtime.GOARCH
 
+// antigravityHubManifestURL returns the CLI auto-updater manifest URL for the
+// current platform.
+func antigravityHubManifestURL() string {
+	arch := runtime.GOARCH
+	if arch == "arm64" {
+		return "https://antigravity-cli-auto-updater-974169037036.us-central1.run.app/manifests/darwin_arm64.json"
+	}
+	return "https://antigravity-cli-auto-updater-974169037036.us-central1.run.app/manifests/linux_amd64.json"
+}
+
 var (
-	antigravityHubLatestManifestURL = "https://antigravity-hub-auto-updater-974169037036.us-central1.run.app/manifest/latest-arm64-mac.yml"
+	antigravityHubLatestManifestURL = antigravityHubManifestURL()
 )
 
 // Changelists belong to specific Hub releases, not to the latest manifest in
@@ -44,14 +55,13 @@ var (
 // are verified from official language_server --stamp build metadata. Unmapped
 // releases fall back to the highest mapped (version, cl) pair so User-Agent
 // never omits cl= or pairs a newer version with an older build's CL.
+// antigravityCliChangelists maps known CLI versions to their cl= build tag.
+// When the fetched CLI version is not in this map the highest known pair is
+// used so that the User-Agent always carries a plausible cl=.
 var antigravityHubChangelists = map[string]string{
-	"2.23.0": "998057262",
-	"2.24.0": "1000335682",
-	"2.29.0": "1013060670",
-	"2.32.1": "1021296516",
-	"2.32.2": "1022991777",
-	"2.33.0": "1023160026",
-	"2.34.0": "1026637980",
+	"1.5.14": "1023160026",
+	"1.5.15": "1027820220",
+	"1.5.16": "1027820220",
 }
 
 type antigravityHubUpdaterManifest struct {
@@ -171,14 +181,16 @@ func antigravityEffectiveVersion() string {
 	return version
 }
 
-// AntigravityUserAgent returns the User-Agent string used by the Antigravity Hub family.
+// AntigravityUserAgent returns the User-Agent string matching the native
+// Antigravity CLI (agy) format: antigravity/cli/<ver> (aidev_client; os_type=…; arch=…; cl=…; auth_method=consumer).
 func AntigravityUserAgent() string {
 	version, changelist := resolveAntigravityHubVersionAndChangelist(AntigravityLatestVersion())
 	metadata := "aidev_client; " + antigravityHubPlatform
 	if changelist != "" {
 		metadata += "; cl=" + changelist
 	}
-	return fmt.Sprintf("antigravity/hub/%s (%s)", version, metadata)
+	metadata += "; auth_method=consumer"
+	return fmt.Sprintf("antigravity/cli/%s (%s)", version, metadata)
 }
 
 func isAntigravityFamilyUserAgent(lower string) bool {
@@ -236,8 +248,8 @@ func AntigravityOnboardUserUserAgent(userAgent string) string {
 func AntigravityVersionFromUserAgent(userAgent string) string {
 	base := antigravityBaseUserAgent(userAgent)
 	lower := strings.ToLower(base)
-	if strings.HasPrefix(lower, "antigravity/hub/") {
-		rest := base[len("antigravity/hub/"):]
+	if strings.HasPrefix(lower, "antigravity/cli/") {
+		rest := base[len("antigravity/cli/"):]
 		if idx := strings.IndexAny(rest, " 	"); idx >= 0 {
 			rest = rest[:idx]
 		}
@@ -355,3 +367,11 @@ func isValidAntigravitySemVersion(version string) bool {
 	_, ok := parseAntigravitySemVersion(version)
 	return ok
 }
+
+// AntigravitySystemPrompt holds the full native Antigravity CLI system
+// instruction captured from agy (identity + artifacts + guidelines + etc).
+// Only the <identity> block is used as the leading systemInstruction part;
+// the rest is kept here for reference / future use.
+//
+//go:embed antigravity_system_prompt.txt
+var AntigravitySystemPrompt string

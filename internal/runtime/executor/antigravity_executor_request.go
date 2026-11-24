@@ -770,7 +770,7 @@ func geminiToAntigravityDoc(doc *ojson.Doc, modelName string, projectID string, 
 
 // antigravityIdentity is the first system line of the native Antigravity
 // client, mirroring claudeCodeCLIIdentity on the Claude path.
-const antigravityIdentity = "You are Antigravity, a powerful agentic AI coding assistant designed by the Google Deepmind team working on Advanced Agentic Coding."
+const antigravityIdentity = "<identity>\nYou are Antigravity, a powerful agentic AI assistant designed by the Google Deepmind team.\nYou are working with a USER to solve their task.\nThe USER will send you requests, which you must always prioritize addressing. User requests are enclosed within <USER_REQUEST> tags.\n</identity>"
 
 // applyAntigravityIdentityDoc prepends antigravityIdentity as the first
 // systemInstruction part of agent requests (idempotent).
